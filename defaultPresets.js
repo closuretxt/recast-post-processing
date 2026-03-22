@@ -57,9 +57,9 @@ Rules:
 - Write in the verb tenses the original text is written, keeping the grammatical person as well.
 
 What you may change:
-- Sentence length variation — break up monotonous rhythm, mix short and long
+- Sentence length variation, break up monotonous rhythm, mix short and long
 - Eliminate repeated sentence structures, especially consecutive sentences starting the same way
-- Convert telling to showing — remove emotion labels and replace with physical behavior or action
+- Convert telling to showing, remove emotion labels and replace with physical behavior or action
 - Cut filler phrases that carry no meaning
 - Tighten overly wordy constructions without losing meaning
 - Favor flowing sentences connected by conjunctions over short stopped ones
