@@ -23,6 +23,7 @@ const defaultSettings = {
     inject: true,
     replace_inline: false,
     hide_until_last: false,
+    stream_pipeline: true,
     debug_mode: true,
     disable_editable_diff: true,
     min_chars: 10,
@@ -59,6 +60,7 @@ async function loadSettings() {
     $("#recast_inject").prop("checked", extension_settings[extensionName].inject);
     $("#recast_replace_inline").prop("checked", extension_settings[extensionName].replace_inline);
     $("#recast_hide_until_last").prop("checked", extension_settings[extensionName].hide_until_last);
+    $("#recast_stream_pipeline").prop("checked", extension_settings[extensionName].stream_pipeline);
     $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
     $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
@@ -73,6 +75,7 @@ function saveSettings() {
     extension_settings[extensionName].inject = $("#recast_inject").prop("checked");
     extension_settings[extensionName].replace_inline = $("#recast_replace_inline").prop("checked");
     extension_settings[extensionName].hide_until_last = $("#recast_hide_until_last").prop("checked");
+    extension_settings[extensionName].stream_pipeline = $("#recast_stream_pipeline").prop("checked");
     extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
     extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
@@ -333,11 +336,12 @@ async function runPass(pass, text, onChunk = null) {
         if (st.ConnectionManagerRequestService && st.ConnectionManagerRequestService.sendRequest) {
             // Get the stream generator by passing stream: true
             // Passing undefined for maxTokens to allow the model default
+            const isStreamingEnabled = extension_settings[extensionName].stream_pipeline;
             const createGenerator = await st.ConnectionManagerRequestService.sendRequest(
                 ConnectionProfile, 
                 messages, 
                 undefined, 
-                { stream: true }
+                { stream: isStreamingEnabled }
             );
             
             if (typeof createGenerator === 'function') {
@@ -408,8 +412,9 @@ async function runPipeline(originalText, messageId, skipHide = false) {
         
         const isLastPass = i === enabledPasses.length - 1;
         const hideUntilLast = extension_settings[extensionName].hide_until_last;
+        const isStreamingEnabled = extension_settings[extensionName].stream_pipeline;
 
-        const shouldStreamInline = (isLastPass || !hideUntilLast) && currentMessageId !== null;
+        const shouldStreamInline = isStreamingEnabled && (isLastPass || !hideUntilLast) && currentMessageId !== null;
 
         let lastRegexTime = 0;
         let lastRegexResult = "";
@@ -598,7 +603,7 @@ jQuery(async () => {
     registerMacros();
     initDiffViewer();
 
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_debug_mode, #recast_disable_editable_diff").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
     
     $("#recast_preset_select").on("change", function() {
