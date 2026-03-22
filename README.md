@@ -35,7 +35,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
   - Skip diff view for seamless inline replacement.
   - Hide the original message until the entire pipeline is complete.
 - **Preset System:** Save, load, and manage different pipeline configurations. Drag and drop passes to reorder them.
-- **Macro Support:** Exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced SillyTavern workflows.
+- **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing extesion information to be added to specific passes and exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
 
 ## 🚀 Installation
 
