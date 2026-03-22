@@ -651,6 +651,10 @@ jQuery(async () => {
     });
     
     $("#recast_run_pipeline").on("click", () => {
+        if (!extension_settings[extensionName].enabled) {
+            toastr.warning("Recast extension is currently disabled.");
+            return;
+        }
         const st = getST();
         const mesId = st.chat.length - 1;
         const lastMsg = st.chat[mesId];
