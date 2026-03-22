@@ -2,7 +2,9 @@
 
 **Recast** is a SillyTavern extension that adds a highly configurable, multi-pass post-processing pipeline to any AI message output. 
 
-In the near future, LLMs will be accompanied by output post-processing, allowing models to be corrected, realigned or to fulfill specific purposes without being overly instrusive. The main problem even with reasoning is that LLMs cannot essentially go back once their final response was generated or predict what they will say next. Post-processing solves that by allowing completely separate system prompts, reasoning chains or smaller models to take over the original response, allowing them to verify accuracy or improve the quality of the text without being *completely* contextually aware of what the original request was. Make use of what LLMs are the best at: Smaller, clear and direct tasks.
+In the near future, LLMs will be accompanied by output post-processing, allowing models to be corrected, realigned or to fulfill specific purposes without being overly instrusive.
+The main problem with LLMs cannot go back once their final response was generated or predict what they will say next, reasoning can help but it's still prone to prompt poisoning, lack of creativity or coherence.
+Post-processing solves that by allowing completely separate system prompts, reasoning chains or smaller models to take over the original response to verify accuracy or improve the quality of the text without being *completely* contextually aware of what the original request was. Make use of what LLMs are the best at: Smaller, clear and direct tasks.
 
 **The Next Generation of Prompt Management:** If you create and edit prompts often, you probably noticed that there is a ceiling you hit very fast and still lacks the abilities to keep up with so many things at once, while *also* sounding natural and creative. *But what if you could make them all work reliably?* The concept of Post-Processing comes in; By breaking down into tasks *after* the original message was generated you keep creativity and add restraints after, allowing models to freely create content that will be modified during post-processing steps. This allows for even more strict prompt control.
 
@@ -34,7 +36,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
   - Skip diff view for seamless inline replacement.
   - Hide the original message until the entire pipeline is complete.
 - **Preset System:** Save, load, and manage different pipeline configurations. Drag and drop passes to reorder them.
-- **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing extesion information to be added to specific passes and exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
+- **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing other extensions & information to be used in specific passes. Recast also exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
 
 ## 🚀 Installation
 
