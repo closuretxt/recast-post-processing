@@ -18,7 +18,7 @@ After a message is generated, you can run it through a sequence of independent t
 - They don't use your main prompt.
 - They don't share context.
 - They don't know about each other.
-- They can work even without reasoning, making use entirely different models and connection profiles.
+- They work even with reasoning or not and making use of entirely different models and connection profiles.
 
 Essentially, this picks up a response, processes it through each pass in your pipeline, and overwrites it with the final result. With a solid setup, models also start to automatically pickup high-quality prose from previous responses.
 
