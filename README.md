@@ -2,7 +2,9 @@
 
 **Recast** is a SillyTavern extension that adds a highly configurable, multi-pass post-processing pipeline to any AI message output. 
 
-Large language models get better every day, but their performance in multi-tasking and chatting still degrades when keeping track of complex worlds, multiple characters, trackers, and repetition. It gets messy fast. Recast solves this by allowing specific prompts and corrections to be applied *after* the original response is generated, without touching your main prompt.
+In the near future, LLMs will be accompanied by output post-processing, allowing models to be corrected, realigned or to fulfill specific purposes without being overly instrusive. The main problem even with reasoning is that LLMs cannot essentially go back once their whole response was generated and they can't really predict what they will say in the next token, they are not diffusion models after all. Post-processing solves that by allowing completely separate system prompts, reasoning chains or smaller models to take over the original final response, allowing them to verify accuracy or improve the quality of it without exactly being *completely* contextually aware of what the original request was.
+
+Large language models get better every day, but their performance in multi-tasking and chatting still degrades when keeping track of prose quality, repetition complex worlds, multiple characters and trackers. Recast solves this by allowing specific prompts and corrections to be applied *after* the original response is generated, without using your main prompt and making use of what LLMs are the best at: Smaller, clear and direct tasks.
 
 **The Next Generation of Prompt Management:** If you create and edit prompts often, you probably noticed that there is a ceiling you hit very fast and still lacks the abilities to keep up with so many things at once, while also sounding natural and creative. *But what if you could make them all work reliably?* The concept of Post-Processing comes in; By breaking down into tasks *after* the original message was generated you keep creativity and add restraints after, allowing models to freely create content that will be modified in the following steps allowing even more strict prompt control.
 
@@ -46,9 +48,9 @@ Essentially, this picks up a response, processes it through each pass in your pi
 
 1. Navigate to the **Recast Post-Processing** menu in your Extensions tab.
 2. Ensure **Enable Pipeline** is checked.
-3. Click **Add Pass** to create your custom transformation step or use any of the default ones.
+3. (Optional) Click **Add Pass** to create your custom transformation step or use any of the default ones.
 4. Configure the pass:
-   - **Prompt:** Give instructions to the model (e.g., "Rewrite the following text to be more descriptive...").
+   - **Prompt:** Give or edit instructions to the model (e.g., "Rewrite the following text to be more descriptive...").
    - **Connection:** Select the model/API you want to use for this specific task.
    - **Context Options:** Expand the pass details to adjust Context Length, or use the 3-dot menu to inject World Info, Outlets, Character Cards, or Scene Context.
 5. When the AI generates a response, Recast will process it (if "Auto-run" is on), or you can manually click **Run Pipeline**.
@@ -57,8 +59,8 @@ Essentially, this picks up a response, processes it through each pass in your pi
 - **Pass 1: Character Validation** - Use a fast, non-reasoning, emotionally-aware model to ensure the character isn't acting out of themselves.
 - **Pass 2: Prose Refinement** - Use a strong reasoning model to enhance the vocabulary, fix grammar, and elevate the writing style.
 - **Editing Main Prompt** - Remove or edit any bloat that may restrain the model's creativity, including banning words, strict high-quality writing styles, etc. Please save your original prompts beforehand.
-- **Change as you go** - Modifying your main and pass prompts to fullfill your personal preferences is ideal.
-- **Trying out** - Trying out with different main models, both non-reasoning and reasoning ones and also trying them in the pass system is encouraged. Speed and pricing is also something to be considered, since each pass is a different request!
+- **Change as you go** - Modifying your main and pass prompts to fulfill your personal preferences is ideal.
+- **Trying out** - Trying out with different main or pass models, both non-reasoning and reasoning ones is recommended. Speed and pricing is also something to be considered, since each pass is a different request!
 
 ## 🛠️ Prerequisites
 
@@ -79,10 +81,9 @@ AGPL-3.0 LICENSE || Please read LICENSE for more information.
 
 ## TO-DO
 - Better event registration, response streaming and overall visualization, avoiding conflict with other generations
-- Prefills
+- Advanced Prompt Control, prefills and role management Options
 - Text Completion Support
 - Conditional Pass Triggers based on ST-script
-- First Pass to decide the order and which Passes will be used for the upcoming generation
-- Advanced Prompt Control and role management Options
-- Remove editable diffs
-- Stop sequence doesn't trigger pipelines.
+- Adaptative Pass to decide the order and which Passes will be used for the upcoming generation
+- Step Diff Viewer (View how the text changed per step)
+- Stop sequence doesn't trigger pipelines
