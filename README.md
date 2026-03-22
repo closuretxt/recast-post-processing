@@ -42,7 +42,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
 - **Preset System:** Save, load, and manage different pipeline configurations. Drag and drop passes to reorder them.
 - **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing other extensions & information to be used in specific passes. Recast also exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
 - **Simple Direct Design:** We kept everything compact and direct, with advanced options being optional.
-![Extension UI](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/extension%20menu.png)
+![Extension UI](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/extension%20ui%202.png)
 
 ## 🚀 Installation
 
@@ -61,8 +61,9 @@ Essentially, this picks up a response, processes it through each pass in your pi
    - **Connection:** Select the model/API you want to use for this specific task.
    - **Context Options:** Expand the pass details to adjust Context Length, or use the 3-dot menu to inject World Info, Outlets, Character Cards, or Scene Context.
 5. When the AI generates a response, Recast will process it (if "Auto-run" is on), or you can manually click **Run Pipeline**.
+
 *The settings are per-pass and are available by clicking on the arrow:*
-![Extension UI](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/Pass%20Settings.png)
+![Extension UI](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/pass%20settings2.png)
 
 ### Recommended Workflow
 - **Chat Completion** - This extension requires at least one Chat Completion endpoint, but we recommend at least two.
