@@ -114,3 +114,5 @@ AGPL-3.0 LICENSE || Please read LICENSE for more information.
 - Step Diff Viewer (View how the text changed per step)
 - Tool Calling
 - Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
+- Reroll button (Original > Goes again) / Pipeline Again (Passes the last result on the pipeline again) on the review menu
+- Connection profile settings on the top of the pass settings

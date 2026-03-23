@@ -163,6 +163,11 @@
         </div>
         <div class="recast-pass-details" style="display: none; margin-top: 10px;">
             <div class="flex-container alignitemscenter" style="margin-bottom: 5px;">
+                <span style="min-width: 120px;" title="Which connection profile should this pass use?">Connection:</span>
+                <select class="pass-connection text_pole flex1"></select>
+            </div>
+
+            <div class="flex-container alignitemscenter" style="margin-bottom: 5px;">
                 <span style="min-width: 120px;" title="Messages to include">Context Length:</span>
                 <input type="number" class="pass-context-length text_pole flex1" value="3" min="0" />
             </div>
@@ -170,11 +175,6 @@
             <div style="margin-bottom: 5px;">
                 <span>Prompt:</span>
                 <textarea class="pass-prompt text_pole" rows="4" style="width: 100%; resize: vertical; margin-top: 5px;"></textarea>
-            </div>
-            
-            <div class="flex-container alignitemscenter">
-                <span style="min-width: 120px;" title="Leave empty to use default connection">Connection:</span>
-                <select class="pass-connection text_pole flex1"></select>
             </div>
         </div>
     </div>

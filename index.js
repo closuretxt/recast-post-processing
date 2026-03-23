@@ -48,18 +48,33 @@ function setButtonState(state) {
 }
 
 function safeUpdateMessageText(mesId, msg) {
-    const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
-    const mesTextEl = mesEl?.querySelector('.mes_text');
-    if (mesTextEl) {
-        mesTextEl.innerHTML = messageFormatting(
-            msg.mes,
-            msg.name,
-            msg.is_system,
-            msg.is_user,
-            mesId,
-            {},
-            false
-        );
+    const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
+    if (mesEl.length > 0) {
+        const mesTextEl = mesEl.find('.mes_text');
+        if (mesTextEl.length > 0) {
+            mesTextEl.empty();
+            mesEl.find('.mes_edit_buttons').css('display', 'none');
+            mesEl.find('.mes_buttons').css('display', '');
+            mesTextEl.append(
+                messageFormatting(
+                    msg.mes,
+                    msg.name,
+                    msg.is_system,
+                    msg.is_user,
+                    mesId,
+                    {},
+                    false
+                )
+            );
+        }
+        
+        const mesBiasEl = mesEl.find('.mes_bias');
+        if (mesBiasEl.length > 0) {
+            mesBiasEl.empty();
+            if (msg.extra?.bias) {
+                mesBiasEl.append(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
+            }
+        }
     }
     
     updateMessageBlock(mesId, msg);
