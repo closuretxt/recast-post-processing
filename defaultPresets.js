@@ -4,7 +4,7 @@ export const defaultPresets = [
         passes: [
             {
                 id: "pass_validator",
-                name: "Character Behavior Validator",
+                name: "✅ Character Behavior Validator",
                 enabled: true,
                 contextLength: 7,
                 prompt: `You are a character consistency editor. Your only job is to fix dialog and actions that are not in character. Do not improve prose. Do not fix grammar. Do not restructure sentences.
@@ -32,9 +32,9 @@ Return only the corrected text. No explanations, no commentary.`,
             },
             {
                 id: "pass_prose",
-                name: "Prose Rhythm",
+                name: "✒️ Prose Rhythm",
                 enabled: true,
-                contextLength: 10,
+                contextLength: 13,
                 prompt: `You are a prose editor. Your only job is to improve how the text reads without changing what it says.
 Rules:
 - Do not change any dialogue. Not a single word.

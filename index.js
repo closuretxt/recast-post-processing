@@ -78,6 +78,12 @@ function safeUpdateMessageText(mesId, msg) {
     }
     
     updateMessageBlock(mesId, msg);
+
+    // This may fire extensions twice? Hopefully no one complains
+    const st = getST();
+    if (st.eventSource && st.event_types?.MESSAGE_UPDATED) {
+        st.eventSource.emit(st.event_types.MESSAGE_UPDATED, mesId);
+    }
 }
 
 // ACTIVITY AHHH
