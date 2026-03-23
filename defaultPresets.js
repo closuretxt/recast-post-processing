@@ -6,7 +6,7 @@ export const defaultPresets = [
                 id: "pass_validator",
                 name: "Character Behavior Validator",
                 enabled: true,
-                contextLength: 1,
+                contextLength: 5,
                 prompt: `You are a character consistency editor. Your only job is to fix dialog and actions that are not in character. Do not improve prose. Do not fix grammar. Do not restructure sentences.
 
 Priority order for character signals: example dialogue > personality traits > general description.
