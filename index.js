@@ -1,6 +1,6 @@
 import { extension_settings, getContext } from "../../../extensions.js";
 import { showDiffModal, initDiffViewer } from "./diffViewer.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, saveChat, messageFormatting, scrollChatToBottom } from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, saveChat, messageFormatting, scrollChatToBottom, setSendButtonState } from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
@@ -8,10 +8,7 @@ import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
 import { defaultPresets } from "./defaultPresets.js";
 
-// Utility to get ST variables
-function getST() {
-    return getContext();
-}
+// Setup
 
 const extensionName = "Recast";
 const extensionFolderPath = `scripts/extensions/third-party/recast-post-processing`;
@@ -31,11 +28,26 @@ const defaultSettings = {
     active_preset: "Default Preset"
 };
 
+// Base functions
+
+// Utility to get ST variables
+function getST() {
+    return getContext();
+}
+
 function logDebug(...args) {
     if (extension_settings[extensionName].debug_mode) {
         console.log("[Recast DEBUG]", ...args);
     }
 }
+
+function setButtonState(state) {
+    if (typeof setSendButtonState === 'function') {
+        setSendButtonState(state);
+    }
+}
+
+// ACTIVITY AHHH
 
 let isProcessing = false;
 let currentMessageId = null;
@@ -395,6 +407,8 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         return;
     }
     
+    setButtonState(true);
+    
     const preset = extension_settings[extensionName].presets[idx];
     let currentText = originalText;
     
@@ -475,7 +489,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                         mesTextEl.innerHTML = formattedText;
                     }
                     scrollChatToBottom({ waitForFrame: true });
-                } else {
+                } else if (mesEl) {
                     updateMessageBlock(currentMessageId, msg);
                 }
             }
@@ -520,10 +534,10 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                     if (mesTextEl) {
                         const formattedText = messageFormatting(msg.mes, msg.name, msg.is_system, msg.is_user, currentMessageId, {}, false);
                         applyStreamFadeIn(mesTextEl, formattedText);
-                    } else {
+                    } else if (mesEl) {
                         updateMessageBlock(currentMessageId, msg);
                     }
-                } else {
+                } else if (mesEl) {
                     updateMessageBlock(currentMessageId, msg);
                 }
             }
@@ -535,7 +549,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
 
     LatestResult = finalFullText;
     isProcessing = false;
-    
+
     if (enabledPasses.length > 0) {
         $("#recast_progress_fill").css("width", `100%`);
         $("#recast_progress_text").text(`Pipeline complete!`);
@@ -553,6 +567,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                 updateMessageBlock(currentMessageId, msg);
             }
         }
+        setButtonState(false);
         return undefined;
     }
     
@@ -574,7 +589,17 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     if (extension_settings[extensionName].replace_inline) {
         acceptChanges(finalFullText);
     } else {
-        showDiffModal(originalFullText, finalFullText, acceptChanges);
+        showDiffModal(originalFullText, finalFullText, acceptChanges, () => {
+            if (currentMessageId !== null) {
+                const restoreMsg = getST().chat[currentMessageId];
+                if (restoreMsg) {
+                    restoreMsg.mes = originalFullText;
+                    updateMessageBlock(currentMessageId, restoreMsg);
+                    saveChat();
+                }
+            }
+            setButtonState(false);
+        });
     }
     
     return finalFullText;
@@ -607,6 +632,7 @@ function acceptChanges(newText) {
             saveChat();
         }
     }
+    setButtonState(false);
 }
 
 // Register Recast macros with ST's MacrosParser.
@@ -868,6 +894,7 @@ jQuery(async () => {
     st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
             if (!extension_settings[extensionName].autorun) return;
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;
+            if (mesId === 0) return; // uhh funny silly tavern
 
             const chat = getST().chat;
             const msg = chat[mesId];
@@ -896,7 +923,17 @@ jQuery(async () => {
                         // True streaming is now done directly during the pipeline execution (runPass).
                         // Just honour the diff/replace-inline setting for the final save.
                         if (extension_settings[extensionName].replace_inline) {
-                            acceptChanges(result);
+                            if (result === originalText) {
+                                const restoreMsg = getST().chat[mesId];
+                                if (restoreMsg) {
+                                    restoreMsg.mes = originalText;
+                                    updateMessageBlock(mesId, restoreMsg);
+                                    saveChat();
+                                }
+                                setButtonState(false);
+                            } else {
+                                acceptChanges(result);
+                            }
                         } else {
                             // The UI already shows the streamed result, so we need a rejection callback to revert it
                             showDiffModal(originalText, result, acceptChanges, () => {
@@ -906,12 +943,14 @@ jQuery(async () => {
                                     updateMessageBlock(mesId, restoreMsg);
                                     saveChat();
                                 }
+                                setButtonState(false);
                             });
                         }
                     }, 500); // 500ms delay protects the final visual update
                 } else {
                     // Pipeline was skipped — restore the raw streamed content
                     updateMessageBlock(mesId, msg);
+                    setButtonState(false);
                 }
             }
         });

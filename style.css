@@ -360,11 +360,10 @@ ins.rc-ins {
     height: 6px;
     background: linear-gradient(
         90deg,
-        transparent  0%,
-        #4a90e2     15%,
-        #9b59b6     50%,
-        #1abc9c     85%,
-        transparent 100%
+        #4a90e2 0%,
+        #a04ae2 33%,
+        #4ae2c0 66%,
+        #4a90e2 100%
     );
     background-size: 200% 100%;
     border-radius: 10px;
