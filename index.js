@@ -885,6 +885,7 @@ jQuery(async () => {
     st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
             if (!extension_settings[extensionName].autorun) return;
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;
+            if (mesId === 0) return; // uhh funny silly tavern
 
             const chat = getST().chat;
             const msg = chat[mesId];
