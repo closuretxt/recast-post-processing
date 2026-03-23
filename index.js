@@ -548,7 +548,6 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     const originalFullText = prefixText + originalText;
 
     LatestResult = finalFullText;
-    isProcessing = false;
 
     if (enabledPasses.length > 0) {
         $("#recast_progress_fill").css("width", `100%`);
@@ -568,11 +567,13 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
             }
         }
         setButtonState(false);
+        isProcessing = false;
         return undefined;
     }
     
     // When skipHide is active, the caller (MESSAGE_RECEIVED) handles typewriter display and saving.
     if (skipHide) {
+        // isProcessing is handled by the caller in this case
         return finalFullText;
     }
 
@@ -589,7 +590,10 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     if (extension_settings[extensionName].replace_inline) {
         acceptChanges(finalFullText);
     } else {
-        showDiffModal(originalFullText, finalFullText, acceptChanges, () => {
+        showDiffModal(originalFullText, finalFullText, (newText) => {
+            acceptChanges(newText);
+            isProcessing = false;
+        }, () => {
             if (currentMessageId !== null) {
                 const restoreMsg = getST().chat[currentMessageId];
                 if (restoreMsg) {
@@ -599,6 +603,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                 }
             }
             setButtonState(false);
+            isProcessing = false;
         });
     }
     
@@ -633,6 +638,7 @@ function acceptChanges(newText) {
         }
     }
     setButtonState(false);
+    isProcessing = false;
 }
 
 // Register Recast macros with ST's MacrosParser.
@@ -931,12 +937,16 @@ jQuery(async () => {
                                     saveChat();
                                 }
                                 setButtonState(false);
+                                isProcessing = false;
                             } else {
                                 acceptChanges(result);
                             }
                         } else {
                             // The UI already shows the streamed result, so we need a rejection callback to revert it
-                            showDiffModal(originalText, result, acceptChanges, () => {
+                            showDiffModal(originalText, result, (newText) => {
+                                acceptChanges(newText);
+                                isProcessing = false;
+                            }, () => {
                                 const restoreMsg = getST().chat[mesId];
                                 if (restoreMsg) {
                                     restoreMsg.mes = originalText;
@@ -944,6 +954,7 @@ jQuery(async () => {
                                     saveChat();
                                 }
                                 setButtonState(false);
+                                isProcessing = false;
                             });
                         }
                     }, 500); // 500ms delay protects the final visual update
@@ -951,7 +962,11 @@ jQuery(async () => {
                     // Pipeline was skipped — restore the raw streamed content
                     updateMessageBlock(mesId, msg);
                     setButtonState(false);
+                    isProcessing = false;
                 }
+            } else {
+                // If it wasn't intercepted but we are running in MESSAGE_RECEIVED skipHide logic
+                isProcessing = false;
             }
         });
     }
