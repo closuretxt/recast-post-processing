@@ -388,13 +388,13 @@ async function runPass(pass, text, onChunk = null) {
 }
 
 async function runPipeline(originalText, messageId, skipHide = false, prefixText = "") {
-    if (isProcessing) return;
-    if (!extension_settings[extensionName].enabled) return;
+    if (isProcessing) return { skipped: true, reason: 'busy' };
+    if (!extension_settings[extensionName].enabled) return { skipped: true, reason: 'disabled' };
 
     const MinChars = extension_settings[extensionName].min_chars ?? 0;
     if (MinChars > 0 && originalText.trim().length < MinChars) {
         logDebug(`Skipping pipeline: text length ${originalText.trim().length} is below min_chars (${MinChars}).`);
-        return;
+        return { skipped: true, reason: 'min_chars' };
     }
 
     isProcessing = true;
@@ -404,7 +404,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     const idx = getActivePresetIndex();
     if (idx === -1) {
         isProcessing = false;
-        return;
+        return { skipped: true, reason: 'no_preset' };
     }
     
     setButtonState(true);
@@ -568,7 +568,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         }
         setButtonState(false);
         isProcessing = false;
-        return undefined;
+        return { skipped: true, reason: 'zero_passes' };
     }
     
     // When skipHide is active, the caller (MESSAGE_RECEIVED) handles typewriter display and saving.
@@ -922,48 +922,51 @@ jQuery(async () => {
 
             const result = await runPipeline(msg.mes, mesId, isIntercepted);
 
-            if (isIntercepted) {
-                if (result !== undefined) {
-                    // Allow the final stream fade-in animation some time to complete
-                    setTimeout(() => {
-                        // True streaming is now done directly during the pipeline execution (runPass).
-                        // Just honour the diff/replace-inline setting for the final save.
-                        if (extension_settings[extensionName].replace_inline) {
-                            if (result === originalText) {
-                                const restoreMsg = getST().chat[mesId];
-                                if (restoreMsg) {
-                                    restoreMsg.mes = originalText;
-                                    updateMessageBlock(mesId, restoreMsg);
-                                    saveChat();
-                                }
-                                setButtonState(false);
-                                isProcessing = false;
-                            } else {
-                                acceptChanges(result);
-                            }
-                        } else {
-                            // The UI already shows the streamed result, so we need a rejection callback to revert it
-                            showDiffModal(originalText, result, (newText) => {
-                                acceptChanges(newText);
-                                isProcessing = false;
-                            }, () => {
-                                const restoreMsg = getST().chat[mesId];
-                                if (restoreMsg) {
-                                    restoreMsg.mes = originalText;
-                                    updateMessageBlock(mesId, restoreMsg);
-                                    saveChat();
-                                }
-                                setButtonState(false);
-                                isProcessing = false;
-                            });
-                        }
-                    }, 500); // 500ms delay protects the final visual update
-                } else {
-                    // Pipeline was skipped — restore the raw streamed content
+            if (result && result.skipped) {
+                if (isIntercepted) {
+                    // Restore original content
                     updateMessageBlock(mesId, msg);
                     setButtonState(false);
-                    isProcessing = false;
                 }
+                // Do NOT set isProcessing to false if we didn't start the pipeline or didn't own the lock
+                return;
+            }
+
+            if (isIntercepted) {
+                // Allow the final stream fade-in animation some time to complete
+                setTimeout(() => {
+                    // True streaming is now done directly during the pipeline execution (runPass).
+                    // Just honour the diff/replace-inline setting for the final save.
+                    if (extension_settings[extensionName].replace_inline) {
+                        if (result === originalText) {
+                            const restoreMsg = getST().chat[mesId];
+                            if (restoreMsg) {
+                                restoreMsg.mes = originalText;
+                                updateMessageBlock(mesId, restoreMsg);
+                                saveChat();
+                            }
+                            setButtonState(false);
+                            isProcessing = false;
+                        } else {
+                            acceptChanges(result);
+                        }
+                    } else {
+                        // The UI already shows the streamed result, so we need a rejection callback to revert it
+                        showDiffModal(originalText, result, (newText) => {
+                            acceptChanges(newText);
+                            isProcessing = false;
+                        }, () => {
+                            const restoreMsg = getST().chat[mesId];
+                            if (restoreMsg) {
+                                restoreMsg.mes = originalText;
+                                updateMessageBlock(mesId, restoreMsg);
+                                saveChat();
+                            }
+                            setButtonState(false);
+                            isProcessing = false;
+                        });
+                    }
+                }, 500); // 500ms delay protects the final visual update
             } else {
                 // If it wasn't intercepted but we are running in MESSAGE_RECEIVED skipHide logic
                 isProcessing = false;
