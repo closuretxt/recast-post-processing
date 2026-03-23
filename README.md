@@ -1,4 +1,4 @@
-# Recast | Prose Post-Processing for SillyTavern
+# Recast | SillyTavern Prose Post-Processing
 
 ⚠️ CURRENTLY UNDER TESTING. I have no idea if it works on different workflows. ⚠️
 
@@ -113,4 +113,4 @@ AGPL-3.0 LICENSE || Please read LICENSE for more information.
 - Adaptative Pass to decide the order and which Passes will be used for the upcoming generation
 - Step Diff Viewer (View how the text changed per step)
 - Tool Calling
-- Addition Type Pass (For Trackers)
+- Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
