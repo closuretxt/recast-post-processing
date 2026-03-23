@@ -719,6 +719,10 @@ jQuery(async () => {
     // Stop pipeline button
     progressBar.find("#recast_stop_pipeline").on("click", () => {
         isPipelineCancelled = true;
+        isProcessing = false;
+        setButtonState(false);
+        $("#recast_progress_bar").fadeOut(300);
+        $("#form_sheld").removeClass("recast-input-active");
         logDebug("Pipeline cancelled by user via stop button.");
     });
 
