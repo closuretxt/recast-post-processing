@@ -1,6 +1,6 @@
 import { extension_settings, getContext } from "../../../extensions.js";
 import { showDiffModal, initDiffViewer } from "./diffViewer.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, saveChat, messageFormatting, scrollChatToBottom } from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, saveChat, messageFormatting, scrollChatToBottom, setSendButtonState } from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
@@ -395,6 +395,10 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         return;
     }
     
+    if (typeof setSendButtonState === 'function') {
+        setSendButtonState(true);
+    }
+    
     const preset = extension_settings[extensionName].presets[idx];
     let currentText = originalText;
     
@@ -536,6 +540,10 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     LatestResult = finalFullText;
     isProcessing = false;
     
+    if (typeof setSendButtonState === 'function') {
+        setSendButtonState(false);
+    }
+
     if (enabledPasses.length > 0) {
         $("#recast_progress_fill").css("width", `100%`);
         $("#recast_progress_text").text(`Pipeline complete!`);
