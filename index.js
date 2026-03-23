@@ -489,7 +489,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                         mesTextEl.innerHTML = formattedText;
                     }
                     scrollChatToBottom({ waitForFrame: true });
-                } else {
+                } else if (mesEl) {
                     updateMessageBlock(currentMessageId, msg);
                 }
             }
@@ -534,10 +534,10 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                     if (mesTextEl) {
                         const formattedText = messageFormatting(msg.mes, msg.name, msg.is_system, msg.is_user, currentMessageId, {}, false);
                         applyStreamFadeIn(mesTextEl, formattedText);
-                    } else {
+                    } else if (mesEl) {
                         updateMessageBlock(currentMessageId, msg);
                     }
-                } else {
+                } else if (mesEl) {
                     updateMessageBlock(currentMessageId, msg);
                 }
             }
