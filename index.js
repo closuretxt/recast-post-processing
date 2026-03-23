@@ -924,8 +924,22 @@ jQuery(async () => {
 
             if (result && result.skipped) {
                 if (isIntercepted) {
-                    // Restore original content
-                    updateMessageBlock(mesId, msg);
+                    // fix allat
+                    const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
+                    const mesTextEl = mesEl?.querySelector('.mes_text');
+                    if (mesTextEl) {
+                        mesTextEl.innerHTML = messageFormatting(
+                            msg.mes,
+                            msg.name,
+                            msg.is_system,
+                            msg.is_user,
+                            mesId,
+                            {},
+                            false
+                        );
+                    } else if (mesEl) {
+                        updateMessageBlock(mesId, msg);
+                    }
                     setButtonState(false);
                 }
                 // Do NOT set isProcessing to false if we didn't start the pipeline or didn't own the lock
