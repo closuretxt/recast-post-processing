@@ -1119,7 +1119,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
+                            if (isProcessing) return;
                             
                             // Compatibility module checks if this should run or not.
                             if (shouldSkipStreamIntercept(extension_settings[extensionName].compatibility_mode)) {
@@ -1266,12 +1266,11 @@ jQuery(async () => {
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
-                logDebug('Recast: Stepped Thinking released mutex.');
-                hideNextAiMessage = true;
-
-                //const st2 = getST();
-                //const mesId = st2.chat.length - 1;
-                //triggerPipelineOnMessage(mesId);
+                logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
+                
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                triggerPipelineOnMessage(mesId);
             }
         });
 
