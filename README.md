@@ -103,7 +103,7 @@ You can help by submitting bug reports or opening pull requests!
 
 ## 📄 License
 
-AGPL-3.0 LICENSE || Please read LICENSE for more information.
+AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for more information.
 
 ## TO-DO
 - Somehow make it stop disappearing with visual swipes (But you can still swipe with keybinds)
@@ -116,3 +116,4 @@ AGPL-3.0 LICENSE || Please read LICENSE for more information.
 - Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
 - Reroll button (Original > Goes again) / Pipeline Again (Passes the last result on the pipeline again) on the review menu
 - Connection profile settings on the top of the pass settings
+- Localization
