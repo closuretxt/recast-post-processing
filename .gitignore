@@ -2,3 +2,5 @@
 /setup
 /base
 /.vscode
+*.log
+*.txt

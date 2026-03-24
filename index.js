@@ -113,17 +113,26 @@ function safeUpdateMessageText(mesId, msg) {
         }
     }
     
-    updateMessageBlock(mesId, msg);
+    try {
+        updateMessageBlock(mesId, msg);
+    } catch (e) {
+        console.warn("Recast: Non-fatal error in updateMessageBlock", e);
+    }
 
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
     if (st.eventSource && st.event_types?.MESSAGE_UPDATED) {
-        st.eventSource.emit(st.event_types.MESSAGE_UPDATED, mesId);
+        try {
+            st.eventSource.emit(st.event_types.MESSAGE_UPDATED, mesId);
+        } catch (e) {
+            console.warn("Recast: Non-fatal error emitting MESSAGE_UPDATED", e);
+        }
     }
 }
 
 // ACTIVITY AHHH
 
+const recentProcessedMessages = new Set();
 let isProcessing = false;
 let currentMessageId = null;
 // Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
@@ -666,6 +675,15 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     if (extension_settings[extensionName].replace_inline) {
         acceptChanges(finalFullText);
     } else {
+        // Restore original text so it's not showing the streamed result or blank behind the modal
+        if (currentMessageId !== null) {
+            const msg = getST().chat[currentMessageId];
+            if (msg) {
+                msg.mes = originalFullText;
+                safeUpdateMessageText(currentMessageId, msg);
+            }
+        }
+
         showDiffModal(originalFullText, finalFullText, (newText) => {
             acceptChanges(newText);
             isProcessing = false;
@@ -674,7 +692,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
                 const restoreMsg = getST().chat[currentMessageId];
                 if (restoreMsg) {
                     restoreMsg.mes = originalFullText;
-                    updateMessageBlock(currentMessageId, restoreMsg);
+                    safeUpdateMessageText(currentMessageId, restoreMsg);
                     getST().saveChat();
                 }
             }
@@ -847,6 +865,12 @@ jQuery(async () => {
             
             const observerCallback = () => {
                 if (isResettingStream) return;
+                const mesId = mesTextEl.closest('.mes')?.getAttribute('mesid');
+                if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) {
+                    streamInterceptObserver.disconnect();
+                    return;
+                }
+                
                 isResettingStream = true;
                 streamInterceptObserver.disconnect();
                 mesTextEl.innerHTML = originalHTML;
@@ -871,6 +895,10 @@ jQuery(async () => {
                             node.classList.contains('mes') &&
                             node.getAttribute('is_user') !== 'true'
                         ) {
+                            const mesId = node.getAttribute('mesid');
+                            if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
+                            if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
+                            
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
                             if (mesTextEl) {
@@ -931,7 +959,7 @@ jQuery(async () => {
                 const st2 = getST();
                 const mesId = st2.chat.length - 1;
                 if (mesId >= 0 && st2.chat[mesId]) {
-                    updateMessageBlock(mesId, st2.chat[mesId]);
+                    safeUpdateMessageText(mesId, st2.chat[mesId]);
                     logDebug(`Recast: generation stopped — restored content of mesid=${mesId}.`);
                 }
             }
@@ -999,8 +1027,13 @@ jQuery(async () => {
                 streamInterceptObserver = null;
                 logDebug('Recast: stream intercept released at MESSAGE_RECEIVED.');
             }
+            
+            if (recentProcessedMessages.has(mesId)) return;
+            recentProcessedMessages.add(mesId);
 
             const result = await runPipeline(msg.mes, mesId, isIntercepted);
+            
+            setTimeout(() => recentProcessedMessages.delete(mesId), 5000); // this is some weird issue I can't seem to fix, so whatever make the message immune.
 
             if (result && result.skipped) {
                 if (isIntercepted) {
@@ -1031,15 +1064,22 @@ jQuery(async () => {
                             acceptChanges(result);
                         }
                     } else {
+                        // Restore original text behind the modal so it's not showing the streamed result or blank
+                        const restoreMsg = getST().chat[mesId];
+                        if (restoreMsg) {
+                            restoreMsg.mes = originalText;
+                            safeUpdateMessageText(mesId, restoreMsg);
+                        }
+
                         // The UI already shows the streamed result, so we need a rejection callback to revert it
                         showDiffModal(originalText, result, (newText) => {
                             acceptChanges(newText);
                             isProcessing = false;
                         }, () => {
-                            const restoreMsg = getST().chat[mesId];
-                            if (restoreMsg) {
-                                restoreMsg.mes = originalText;
-                                safeUpdateMessageText(mesId, restoreMsg);
+                            const restoreMsgRevert = getST().chat[mesId];
+                            if (restoreMsgRevert) {
+                                restoreMsgRevert.mes = originalText;
+                                safeUpdateMessageText(mesId, restoreMsgRevert);
                                 getST().saveChat();
                             }
                             setButtonState(false);
