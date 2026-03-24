@@ -1,6 +1,6 @@
+// IMPORTS
 import { extension_settings, getContext } from "../../../extensions.js";
-import { showDiffModal, initDiffViewer } from "./diffViewer.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState } from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled } from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
@@ -8,42 +8,153 @@ import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
 import { defaultPresets } from "./defaultPresets.js";
 
-// Setup
+// Self Util
+import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
+import { swapProfile } from "./util/profileSwapper.js";
 
+// Setup
 const extensionName = "Recast";
 const extensionFolderPath = `scripts/extensions/third-party/recast-post-processing`;
 const extensionSettings = extension_settings[extensionName];
 
 const defaultSettings = {
     enabled: true,
-    autorun: true,
-    inject: true,
-    replace_inline: false,
-    hide_until_last: true,
-    stream_pipeline: true,
+    autorun: true, // Runs on gen
+    inject: true, // Should edit messages with new content
+    replace_inline: false, // If it should edit messages as the pipeline runs
+    hide_until_last: true, // Skips all message edit and hides the message until pipeline is about to end
+    stream_pipeline: true, // Streaming, has to have default sillystreaming enabled too
     debug_mode: false,
-    disable_editable_diff: true,
-    min_chars: 10,
+    disable_editable_diff: true, // Disables the edit field in the diff viewer
+    legacy_api: false, // Swaps profiles and waits for them before doing the request, useful for fixing some issues with root ST code
+    min_chars: 10, // Skips if there's not enough characters. Useful for preventing rejections or shortcomings from triggering pipeline
+    
     presets: defaultPresets,
     active_preset: "Default Preset"
 };
 
-// Base functions
+// Starting variables
+const recentProcessedMessages = new Set(); // Per message cooldown. Making sure other extensions won't trigger the pipeline twice. Yeah I know...
+let isProcessing = false;
+let currentMessageId = null;
+// Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
+let hideNextAiMessage = false;
+// Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
+let streamInterceptObserver = null;
+let isResettingStream = false;
+let isPipelineCancelled = false;
+let lastGenerationType = null;
 
+// Pass utility and macro
+const PassResults = {};
+let LatestResult = "";
+
+// Base functions
 // Utility to get ST variables
 function getST() {
     return getContext();
 }
 
+// Debug function ofc
 function logDebug(...args) {
     if (extension_settings[extensionName].debug_mode) {
-        console.log("[Recast DEBUG]", ...args);
+        console.log("[Recast]", ...args);
     }
+}
+
+// CONNECTION PROFILE MANAGER STUFF
+function getErrorStatusCode(error) {
+    return error?.response?.status
+        ?? error?.status
+        ?? error?.error?.status
+        ?? error?.cause?.status
+        ?? error?.cause?.response?.status
+        ?? null;
+}
+
+function shouldRetryRequest(error) {
+    const StatusCode = getErrorStatusCode(error);
+    return StatusCode === 400 || StatusCode === 401 || StatusCode === 403;
+}
+
+function isConnectionManagerActive(st) {
+    return !st?.extensionSettings?.disabledExtensions?.includes('connection-manager')
+        && !!st?.extensionSettings?.connectionManager;
+}
+
+function getConnectionProfiles(st) {
+    if (!isConnectionManagerActive(st)) {
+        return [];
+    }
+    return st.extensionSettings.connectionManager.profiles || [];
+}
+
+function hasConnectionProfile(st, profileId) {
+    if (!profileId) return true;
+    const Profiles = getConnectionProfiles(st);
+    return Profiles.some(p => p.id === profileId);
+}
+
+function parse_reasoning(text, profile_id) { // thanks qvink
+    let ctx = getST();
+    
+    if (typeof ctx.parseReasoningFromString !== 'function' || typeof ctx.getReasoningTemplateByName !== 'function') {
+        return text;
+    }
+
+    const Profiles = getConnectionProfiles(ctx);
+    let profile_data = Profiles.find(p => p.id === profile_id);
+    if (!profile_data) return text;
+
+    let template_name = profile_data["reasoning-template"];
+    if (!template_name) {
+        logDebug("No reasoning template specified in profile");
+        return text;
+    }
+
+    let template = ctx.getReasoningTemplateByName(template_name);
+    if (!template) return text;
+
+    let parsed = ctx.parseReasoningFromString(text, {}, template);
+    if (!parsed?.reasoning) return text;  // no reasoning
+
+    logDebug("Parsed reasoning: ", parsed);
+    return parsed.content || text;
+}
+
+function getProfileNameById(st, profileId) {
+    if (!profileId) return null;
+    const Profiles = getConnectionProfiles(st);
+    const profile = Profiles.find(p => p.id === profileId);
+    return profile ? profile.name : null;
+}
+
+function resolveConnectionProfile(st, preferredProfileId = "") {
+    const SelectedProfile = st?.extensionSettings?.connectionManager?.selectedProfile || "";
+
+    if (!isConnectionManagerActive(st)) {
+        return "";
+    }
+
+    if (preferredProfileId && hasConnectionProfile(st, preferredProfileId)) {
+        return preferredProfileId;
+    }
+
+    if (preferredProfileId && !hasConnectionProfile(st, preferredProfileId)) {
+        logDebug(`Requested profile '${preferredProfileId}' not found. Falling back to current profile.`);
+    }
+
+    if (SelectedProfile && hasConnectionProfile(st, SelectedProfile)) {
+        return SelectedProfile;
+    }
+
+    return "";
 }
 
 function showErrorToast(passName, error) {
     if (typeof toastr !== 'undefined' && toastr.error) {
         let errorMsg = error.message || String(error);
+        const statusCode = getErrorStatusCode(error);
 
         // If it's an object with nothing useful, try to stringify
         if (errorMsg === "[object Object]") {
@@ -73,16 +184,24 @@ function showErrorToast(passName, error) {
                 }
             } catch(e) {}
         }
+
+        if (statusCode !== null && statusCode !== undefined) {
+            errorMsg = `HTTP ${statusCode}: ${errorMsg}`;
+        }
+
         toastr.error(`Check your Connection Profile. Error in pass "${passName}": ${errorMsg}`, "Recast Error", { timeOut: 10000 });
     }
 }
 
+// CORE Silly
+// setButtonState AKA block all generations. If there's any other better way to do this please tell me... It has to yield other extensions like qvink and vectorization.
 function setButtonState(state) {
     if (typeof setSendButtonState === 'function') {
         setSendButtonState(state);
     }
 }
 
+// Makes sure to update the message in chat. Had a lot of trouble in the past with this so there may be a bit too much stuff
 function safeUpdateMessageText(mesId, msg) {
     const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
     if (mesEl.length > 0) {
@@ -130,23 +249,7 @@ function safeUpdateMessageText(mesId, msg) {
     }
 }
 
-// ACTIVITY AHHH
-
-const recentProcessedMessages = new Set();
-let isProcessing = false;
-let currentMessageId = null;
-// Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
-let hideNextAiMessage = false;
-// Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
-let streamInterceptObserver = null;
-let isResettingStream = false;
-let isPipelineCancelled = false;
-let lastGenerationType = null;
-
-// Per-pass results from the last pipeline run, keyed by pass id
-const PassResults = {};
-let LatestResult = "";
-
+// SETTINGS
 async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
     if (Object.keys(extension_settings[extensionName]).length === 0) {
@@ -161,6 +264,7 @@ async function loadSettings() {
     $("#recast_stream_pipeline").prop("checked", extension_settings[extensionName].stream_pipeline);
     $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
     $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
+    $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
 
     populatePresetDropdown();
@@ -176,12 +280,14 @@ function saveSettings() {
     extension_settings[extensionName].stream_pipeline = $("#recast_stream_pipeline").prop("checked");
     extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
     extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
+    extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
     
     saveActivePreset();
     saveSettingsDebounced();
 }
 
+// PRESET stuff
 function populateConnectionDropdown(selectElement, currentValue) {
     const st = getST();
     selectElement.empty();
@@ -252,6 +358,7 @@ function loadActivePreset() {
     });
 }
 
+// PASS Setup
 function addPassToUI(pass = null) {
     if (!pass) {
         pass = {
@@ -302,7 +409,7 @@ function addPassToUI(pass = null) {
     });
     
     item.find(".pass-toggle-details").on("click", function() {
-        $(this).closest(".recast-pass-item").find(".recast-pass-details").toggle();
+        $(this).closest(".recast-pass-item").find(".recast-pass-details").toggle(); 
         $(this).toggleClass("fa-chevron-down fa-chevron-up");
     });
     
@@ -311,6 +418,8 @@ function addPassToUI(pass = null) {
     $("#recast_pass_list").append(item);
 }
 
+
+// MAIN
 async function runPass(pass, text, onChunk = null) {
     if (!pass.enabled) return text;
 
@@ -423,7 +532,9 @@ async function runPass(pass, text, onChunk = null) {
         logDebug("System prompt:", systemPrompt);
         logDebug("User prompt:", userPrompt);
 
-        const ConnectionProfile = pass.connection ? pass.connection : st.extensionSettings.connectionManager?.selectedProfile;
+        const ConnectionProfile = resolveConnectionProfile(st, pass.connection || "");
+        const TargetProfileName = getProfileNameById(st, ConnectionProfile);
+        const OriginalProfileName = st.extensionSettings?.connectionManager?.selectedProfileName || getProfileNameById(st, resolveConnectionProfile(st, ""));
 
         const messages = [
             { role: "system", content: systemPrompt },
@@ -431,39 +542,85 @@ async function runPass(pass, text, onChunk = null) {
         ];
 
         let result = "";
-        
-        if (st.ConnectionManagerRequestService && st.ConnectionManagerRequestService.sendRequest) {
-            // Get the stream generator by passing stream: true
-            // Passing undefined for maxTokens to allow the model default
-            const isStreamingEnabled = extension_settings[extensionName].stream_pipeline;
+        let swappedProfile = false;
+
+        async function requestPass(connectionProfileId, streamMode) {
+            if (extension_settings[extensionName].legacy_api) {
+                if (TargetProfileName && TargetProfileName !== OriginalProfileName) {
+                    const swapSuccess = await swapProfile(TargetProfileName, OriginalProfileName);
+                    if (swapSuccess) {
+                        swappedProfile = true;
+                    }
+                }
+            }
+
+            if (!st.ConnectionManagerRequestService || !st.ConnectionManagerRequestService.sendRequest) {
+                throw new Error("ConnectionManagerRequestService.sendRequest is unavailable.");
+            }
+
+            logDebug(`Pass ${pass.name}: sendRequest profile='${connectionProfileId || "<same-as-current>"}', stream=${streamMode}`);
+
             const createGenerator = await st.ConnectionManagerRequestService.sendRequest(
-                ConnectionProfile, 
-                messages, 
-                undefined, 
-                { stream: isStreamingEnabled }
+                connectionProfileId,
+                messages,
+                undefined,
+                { stream: streamMode }
             );
-            
+
             if (typeof createGenerator === 'function') {
                 const generator = createGenerator();
+                let streamResult = "";
                 for await (const chunk of generator) {
                     if (isPipelineCancelled) {
                         logDebug(`Pass ${pass.name}: stream aborted by isPipelineCancelled.`);
                         break;
                     }
                     if (chunk && chunk.text !== undefined) {
-                        result = chunk.text; // The generator typically yields the accumulated string so far
+                        streamResult = chunk.text;
                         if (onChunk) {
-                            onChunk(result);
+                            onChunk(streamResult);
                         }
                     }
                 }
-            } else if (createGenerator && typeof createGenerator === 'object') {
-                // If it wasn't a stream or generator failed to stream
-                result = createGenerator.content || createGenerator.text || String(createGenerator);
-                if (onChunk) onChunk(result);
+                return streamResult;
+            }
+
+            if (createGenerator && typeof createGenerator === 'object') {
+                const fallbackResult = createGenerator.content || createGenerator.text || String(createGenerator);
+                if (onChunk) onChunk(fallbackResult);
+                return fallbackResult;
+            }
+
+            return "";
+        }
+        
+        const isPipelineStreamingEnabled = extension_settings[extensionName].stream_pipeline && isSTStreamingEnabled();
+
+        try {
+            result = await requestPass(ConnectionProfile, isPipelineStreamingEnabled);
+        } catch (firstError) {
+            const fallbackProfile = resolveConnectionProfile(st, "");
+            const retryWithFallbackProfile = shouldRetryRequest(firstError) && fallbackProfile !== ConnectionProfile;
+            const retryWithoutStreaming = isPipelineStreamingEnabled; // fixing undefined variable
+
+            if (retryWithFallbackProfile || retryWithoutStreaming) {
+                const RetryProfile = retryWithFallbackProfile ? fallbackProfile : ConnectionProfile;
+                const RetryStream = retryWithoutStreaming ? false : isPipelineStreamingEnabled;
+                logDebug(
+                    `Pass ${pass.name}: first request failed (status=${getErrorStatusCode(firstError) ?? "unknown"}). ` +
+                    `Retrying with profile='${RetryProfile || "<same-as-current>"}', stream=${RetryStream}`
+                );
+                result = await requestPass(RetryProfile, RetryStream);
+            } else {
+                throw firstError;
+            }
+        } finally {
+            if (swappedProfile && OriginalProfileName) {
+                await swapProfile(OriginalProfileName, TargetProfileName);
             }
         }
 
+        result = parse_reasoning(result, ConnectionProfile);
         logDebug("Pass result:", result);
         return result || text;
     } catch (e) {
@@ -473,6 +630,7 @@ async function runPass(pass, text, onChunk = null) {
     }
 }
 
+// MAIN PIPELINE thread
 async function runPipeline(originalText, messageId, skipHide = false, prefixText = "") {
     if (isProcessing) return { skipped: true, reason: 'busy' };
     if (!extension_settings[extensionName].enabled) return { skipped: true, reason: 'disabled' };
@@ -493,7 +651,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         return { skipped: true, reason: 'no_preset' };
     }
     
-    setButtonState(true);
+    setButtonState(true); // Locks generation - I think?
     
     const preset = extension_settings[extensionName].presets[idx];
     let currentText = originalText;
@@ -513,7 +671,8 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
             if (mesTextEl) mesTextEl.innerHTML = '';
         }
     }
-    
+
+    //
     let completedPassesCount = 0;
 
     for (let i = 0; i < enabledPasses.length; i++) {
@@ -531,9 +690,9 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         
         const isLastPass = i === enabledPasses.length - 1;
         const hideUntilLast = extension_settings[extensionName].hide_until_last;
-        const isStreamingEnabled = extension_settings[extensionName].stream_pipeline;
+        const isPipelineStreamingEnabled = extension_settings[extensionName].stream_pipeline && isSTStreamingEnabled();
 
-        const shouldStreamInline = isStreamingEnabled && (isLastPass || !hideUntilLast) && currentMessageId !== null;
+        const shouldStreamInline = isPipelineStreamingEnabled && (isLastPass || !hideUntilLast) && currentMessageId !== null;
 
         let lastRegexTime = 0;
         let lastRegexResult = "";
@@ -581,6 +740,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
             }
         } : null;
 
+        // Pipeline Startup
         const RawPassResult = await runPass(pass, currentText, onChunk);
         
         if (isPipelineCancelled) {
@@ -595,6 +755,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
             break;
         }
 
+        // Run regex on result
         const RegexedResult = applySTRegex(RawPassResult);
 
         if (RegexedResult.trim().length === 0) {
@@ -629,7 +790,8 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         }
     }
 
-    const finalFullText = prefixText + currentText;
+    // Wrapping up
+    const finalFullText = prefixText + currentText; // Prefix text is for continue stuff btw.
     const originalFullText = prefixText + originalText;
 
     LatestResult = finalFullText;
@@ -643,6 +805,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         }, 1500);
     }
 
+    // Backup
     if (completedPassesCount === 0) {
         if (currentMessageId !== null) {
             const msg = getST().chat[currentMessageId];
@@ -672,6 +835,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         }
     }
     
+    // Skip diff or not.
     if (extension_settings[extensionName].replace_inline) {
         acceptChanges(finalFullText);
     } else {
@@ -704,24 +868,9 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     return finalFullText;
 }
 
+// OTHER
 
-//
-
-function applySTRegex(text) {
-    try {
-        if (typeof getRegexedString === "function") {
-            const Result = getRegexedString(text, regex_placement.AI_OUTPUT);
-            logDebug("ST regex applied:", Result);
-            return Result ?? text;
-        }
-    } catch (e) {
-        console.error("Recast: Error applying ST regex:", e);
-    }
-    return text;
-}
-
-//
-
+// Diff
 function acceptChanges(newText) {
     if (currentMessageId !== null) {
         const msg = getST().chat[currentMessageId];
@@ -735,6 +884,21 @@ function acceptChanges(newText) {
     isProcessing = false;
 }
 
+// REGEX
+function applySTRegex(text) {
+    try {
+        if (typeof getRegexedString === "function") {
+            const Result = getRegexedString(text, regex_placement.AI_OUTPUT);
+            logDebug("ST regex applied:", Result);
+            return Result ?? text;
+        }
+    } catch (e) {
+        console.error("Recast: Error applying ST regex:", e);
+    }
+    return text;
+}
+
+// MACROS
 // Register Recast macros with ST's MacrosParser.
 // {{recast_latest}}        — full text output from the last completed pipeline run
 // {{recast_<pass_id>}}     — output of a specific pass from the last pipeline run
@@ -757,13 +921,12 @@ function registerMacros() {
     logDebug("Macros registered:", ["recast_latest", ...Passes.map(p => `recast_${p.id}`)]);
 }
 
-//
-
+// Startup
 jQuery(async () => {
     const settingsHtml = await $.get(`${extensionFolderPath}/index.html`);
     const tempDiv = $('<div>').html(settingsHtml);
     
-    // Move progress bar, diff backdrop and diff modal to body so they are visible everywhere
+    // Progress Bar and stuff
     const progressBar = tempDiv.find("#recast_progress_bar");
     const diffBackdrop = tempDiv.find("#recast_diff_backdrop");
     const diffModal = tempDiv.find("#recast_diff_modal");
@@ -789,9 +952,10 @@ jQuery(async () => {
     registerMacros();
     initDiffViewer();
 
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
     
+    // Preset Buttons
     $("#recast_preset_select").on("change", function() {
         extension_settings[extensionName].active_preset = $(this).val();
         loadActivePreset();
@@ -820,6 +984,7 @@ jQuery(async () => {
         loadActivePreset();
     });
 
+    // Pass Buttons
     $("#recast_add_pass").on("click", () => {
         addPassToUI();
         saveSettings();
@@ -840,20 +1005,60 @@ jQuery(async () => {
         }
     });
     
-    // Make pass list sortable (Assuming ST includes jQuery UI sortable or similar, otherwise plain drag and drop is needed)
-    if ($.fn.sortable) {
-        $("#recast_pass_list").sortable({
-            handle: ".fa-grip-vertical",
-            update: saveSettings
-        });
-    }
+    // Drag and drop sortable list
+    $("#recast_pass_list").sortable({
+        handle: ".fa-grip-vertical",
+        update: saveSettings
+    });
 
     $(document).on("click", function() {
         $(".pass-menu-dropdown").hide();
     });
 
+    // BUTTON cool button stuff
+    function injectMessageTemplateButton() {
+        const html = `<div title="Run Recast Pipeline on this message" class="mes_button recast-msg-btn interactable fa-solid fa-hand-sparkles" tabindex="0"></div>`;
+        $("#message_template .mes_buttons .extraMesButtons").prepend(html);
+
+        // Inject into any existing messages right now so we don't have to reload
+        $("#chat .mes .extraMesButtons").each(function() {
+            if ($(this).find(".recast-msg-btn").length === 0) {
+                $(this).prepend(html);
+            }
+        });
+    }
+
+    injectMessageTemplateButton();
+
+    $(document).on("click", ".recast-msg-btn", function(e) {
+        e.stopPropagation();
+        if (!extension_settings[extensionName].enabled) {
+            toastr.warning("Recast extension is currently disabled.");
+            return;
+        }
+
+        const mesEl = $(this).closest('.mes');
+        const mesId = mesEl.attr('mesid');
+        const isUser = mesEl.attr('is_user') === 'true';
+
+        if (isUser) {
+            toastr.warning("Recast can only process AI messages.");
+            return;
+        }
+
+        const st = getST();
+        const msg = st.chat[mesId];
+        if (msg) {
+            runPipeline(msg.mes, parseInt(mesId, 10));
+        } else {
+            toastr.warning("Could not find message data.");
+        }
+    });
+
+    ///
+    // DOM and Generation Stuff
     const st = getST();
-    if (st.eventSource && st.event_types) {
+    if (st.eventSource && st.event_types) { // bro is checking for nothing lmaoo // this is some real vibecode stuff
         // Helper: attach a MutationObserver on a .mes_text element that blanks any content
         // update while the pipeline is pending, creating a "char is typing..." visual.
         function attachStreamIntercept(mesTextEl, preserveText = false) {
@@ -965,46 +1170,7 @@ jQuery(async () => {
             }
         });
 
-        // Run pipeline once the message is fully received.
-    function injectMessageTemplateButton() {
-        const html = `<div title="Run Recast Pipeline on this message" class="mes_button recast-msg-btn interactable fa-solid fa-hand-sparkles" tabindex="0"></div>`;
-        $("#message_template .mes_buttons .extraMesButtons").prepend(html);
-
-        // Inject into any existing messages right now so we don't have to reload
-        $("#chat .mes .extraMesButtons").each(function() {
-            if ($(this).find(".recast-msg-btn").length === 0) {
-                $(this).prepend(html);
-            }
-        });
-    }
-
-    injectMessageTemplateButton();
-
-    $(document).on("click", ".recast-msg-btn", function(e) {
-        e.stopPropagation();
-        if (!extension_settings[extensionName].enabled) {
-            toastr.warning("Recast extension is currently disabled.");
-            return;
-        }
-
-        const mesEl = $(this).closest('.mes');
-        const mesId = mesEl.attr('mesid');
-        const isUser = mesEl.attr('is_user') === 'true';
-
-        if (isUser) {
-            toastr.warning("Recast can only process AI messages.");
-            return;
-        }
-
-        const st = getST();
-        const msg = st.chat[mesId];
-        if (msg) {
-            runPipeline(msg.mes, parseInt(mesId, 10));
-        } else {
-            toastr.warning("Could not find message data.");
-        }
-    });
-
+    // MESSAGE_RECEIVED EVENT
     st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
             if (!extension_settings[extensionName].autorun) return;
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;

@@ -2,6 +2,17 @@
 
 ⚠️ CURRENTLY UNDER TESTING. I have no idea if it works on different workflows. ⚠️
 
+## 🚀 Installation
+
+1. Open SillyTavern, go to the Extensions menu (boxes icon).
+2. Click "Install Extension" at the top right.
+3. Paste this URL and click 'Install for me':
+```plaintext
+https://github.com/closuretxt/recast-post-processing
+```
+
+## About ST Post-Processing
+
 **Recast** or **ST Post-Processing** is a SillyTavern extension that adds a highly configurable, multi-pass post-processing pipeline to any AI message output. Aiming towards improving the quality and coherence of the final message.
 
 In the near future, LLMs will be accompanied by output post-processing, allowing models to be corrected, realigned or to fulfill specific purposes without being overly instrusive.
@@ -38,19 +49,10 @@ Essentially, this picks up a response, processes it through each pass in your pi
 - **Diff Viewer:** Review, edit, accept, or reject the changes made by the pipeline with a clean side-by-side diff UI.
 - **Highly Customizable:**
   - Auto-run on generation or trigger manually.
-  - Skip diff view for seamless inline replacement.
-  - Hide the original message until the entire pipeline is complete.
+  - Skip diff view and hide original message for seamless use.
 - **Preset System:** Save, load, and manage different pipeline configurations. Drag and drop passes to reorder them.
 - **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing other extensions & information to be used in specific passes. Recast also exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
 - **Simple Direct Design:** We kept everything compact and direct, with advanced options being optional.
-![Extension UI](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/extension%20ui%202.png)
-
-## 🚀 Installation
-
-1. Open SillyTavern.
-2. Go to the Extensions menu (plug icon).
-3. Click "Install Extension".
-4. Paste the URL of this repository and click Install. (https://github.com/closuretxt/recast-post-processing)
 
 ## 💡 Usage Guide
 
@@ -79,15 +81,8 @@ Essentially, this picks up a response, processes it through each pass in your pi
 - Tested and built on the **Latest Staging** build of SillyTavern.
 - For model switching per pass, the **Connection Profiles** extension must be enabled.
 
-## 🤝 Support and Contributions
-
-Contact me through the Discord extension post or Reddit comments on the original post regarding this extension.
-
-You can help by submitting bug reports or opening pull requests!
-
-*Special thanks to Qvink for the Connection Profile generation! (github.com/qvink/qvink_memory)*
-
-*Beautiful custom theme - Moonlit Echoes by Rivelle! (https://github.com/RivelleDays/SillyTavern-MoonlitEchoesTheme)*
+### Troubleshooting
+- If you have any API issues, turn on 'Legacy Connection Profile' in Advanced Settings and make sure the API is valid.
 
 ## Examples
 
@@ -101,9 +96,20 @@ You can help by submitting bug reports or opening pull requests!
  - Deepseek 3.2 Reasoning, GLM 5 No reasoning (Validator) and DS 3.2 Reasoning (Prose)
 ![Example](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/deepseek%20reasoning.png)
 
+## 🤝 Support and Contributions
+
+Contact me through the Discord extension post or Reddit comments on the original post regarding this extension.
+You can help by submitting bug reports or opening pull requests!
+
+### Special Thanks
+- *Qvink for the Connection Profile generation! [Available here](github.com/qvink/qvink_memory)*
+- *Rivelle for the Beautiful custom theme - Moonlit Echoes! [Available here](https://github.com/RivelleDays/SillyTavern-MoonlitEchoesTheme)*
+- *RossAscends for the robust Profile Switching! [Available here](https://github.com/RossAscends/ST-TCReasoningProfile)*
+- *SillyTavern devs, [weather](https://github.com/bmen25124), [Qvink](github.com/qvink) and community for the ConnectionProfileService*
+
 ## 📄 License
 
-AGPL-3.0 LICENSE || Please read LICENSE for more information.
+AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for more information.
 
 ## TO-DO
 - Somehow make it stop disappearing with visual swipes (But you can still swipe with keybinds)
@@ -116,3 +122,4 @@ AGPL-3.0 LICENSE || Please read LICENSE for more information.
 - Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
 - Reroll button (Original > Goes again) / Pipeline Again (Passes the last result on the pipeline again) on the review menu
 - Connection profile settings on the top of the pass settings
+- Localization
