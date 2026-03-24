@@ -33,6 +33,7 @@ export async function initCompatibilityListeners(onHideNextAiMessageReArm) {
     console.warn(`${LOG_PREFIX} Initialized.`);
 }
 
+// EVENT CHECKS
 /**
  * Checks if the stream intercept should be skipped due to other active extensions
  * @param {boolean} compatibilityModeEnabled - Whether compatibility mode is enabled in settings

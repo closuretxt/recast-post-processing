@@ -210,39 +210,35 @@ function setButtonState(state) { // False unlocks, true locks it
 
 // Makes sure to update the message in chat. Had a lot of trouble in the past with this so there may be a bit too much stuff
 function safeUpdateMessageText(mesId, msg) {
-    const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
-    if (mesEl.length > 0) {
-        const mesTextEl = mesEl.find('.mes_text');
-        if (mesTextEl.length > 0) {
-            mesTextEl.empty();
-            mesEl.find('.mes_edit_buttons').css('display', 'none');
-            mesEl.find('.mes_buttons').css('display', '');
-            mesTextEl.append(
-                messageFormatting(
-                    msg.mes,
-                    msg.name,
-                    msg.is_system,
-                    msg.is_user,
-                    mesId,
-                    {},
-                    false
-                )
-            );
-        }
-        
-        const mesBiasEl = mesEl.find('.mes_bias');
-        if (mesBiasEl.length > 0) {
-            mesBiasEl.empty();
-            if (msg.extra?.bias) {
-                mesBiasEl.append(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
-            }
-        }
-    }
-    
     try {
         updateMessageBlock(mesId, msg);
     } catch (e) {
         console.warn("Recast: Non-fatal error in updateMessageBlock", e);
+        // Force Update CSS // I am kinda scared that silly may not properly update the message.
+        const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
+        if (mesEl.length > 0) {
+            const mesTextEl = mesEl.find('.mes_text');
+            if (mesTextEl.length > 0) {
+                mesTextEl.html(
+                    messageFormatting(
+                        msg.mes,
+                        msg.name,
+                        msg.is_system,
+                        msg.is_user,
+                        mesId,
+                        {},
+                        false
+                    )
+                );
+            }
+            
+            const mesBiasEl = mesEl.find('.mes_bias');
+            if (mesBiasEl.length > 0) {
+                if (msg.extra?.bias) {
+                    mesBiasEl.html(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
+                }
+            }
+        }
     }
 
     //try {
@@ -970,10 +966,10 @@ jQuery(async () => {
     $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
 
-    // Compatibility warn
-    $("#recast_compatibility").on("change", function() {
-        toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
-    });
+    // Compatibility warn (Not needed)
+    //$("#recast_compatibility").on("change", function() {
+    //    toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
+    //});
     
     // Preset Buttons
     $("#recast_preset_select").on("change", function() {
