@@ -214,29 +214,30 @@ function safeUpdateMessageText(mesId, msg) {
         updateMessageBlock(mesId, msg);
     } catch (e) {
         console.warn("Recast: Non-fatal error in updateMessageBlock", e);
-        // Force Update CSS // I am kinda scared that silly may not properly update the message.
-        const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
-        if (mesEl.length > 0) {
-            const mesTextEl = mesEl.find('.mes_text');
-            if (mesTextEl.length > 0) {
-                mesTextEl.html(
-                    messageFormatting(
-                        msg.mes,
-                        msg.name,
-                        msg.is_system,
-                        msg.is_user,
-                        mesId,
-                        {},
-                        false
-                    )
-                );
-            }
-            
-            const mesBiasEl = mesEl.find('.mes_bias');
-            if (mesBiasEl.length > 0) {
-                if (msg.extra?.bias) {
-                    mesBiasEl.html(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
-                }
+    }
+
+    // Force Update CSS // I am kinda scared that silly may not properly update the message.
+    const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
+    if (mesEl.length > 0) {
+        const mesTextEl = mesEl.find('.mes_text');
+        if (mesTextEl.length > 0) {
+            mesTextEl.html(
+                messageFormatting(
+                    msg.mes,
+                    msg.name,
+                    msg.is_system,
+                    msg.is_user,
+                    mesId,
+                    {},
+                    false
+                )
+            );
+        }
+        
+        const mesBiasEl = mesEl.find('.mes_bias');
+        if (mesBiasEl.length > 0) {
+            if (msg.extra?.bias) {
+                mesBiasEl.html(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
             }
         }
     }
@@ -1265,10 +1266,12 @@ jQuery(async () => {
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
-                logDebug('Recast: Stepped Thinking released mutex. Triggering pipeline directly.');
-                const st2 = getST();
-                const mesId = st2.chat.length - 1;
-                triggerPipelineOnMessage(mesId);
+                logDebug('Recast: Stepped Thinking released mutex.');
+                hideNextAiMessage = true;
+
+                //const st2 = getST();
+                //const mesId = st2.chat.length - 1;
+                //triggerPipelineOnMessage(mesId);
             }
         });
 
