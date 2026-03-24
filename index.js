@@ -242,6 +242,12 @@ function safeUpdateMessageText(mesId, msg) {
         console.warn("Recast: Non-fatal error in updateMessageBlock", e);
     }
 
+    //try {
+    //    redisplayChat(mesId, msg);
+    //} catch (e) {
+    //    console.warn("Recast: Non-fatal error in redisplayChat", e);
+    //}
+
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
     if (st.eventSource && st.event_types?.MESSAGE_UPDATED) {
@@ -1106,7 +1112,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
+                            //if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
                             
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
