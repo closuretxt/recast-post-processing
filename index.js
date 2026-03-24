@@ -870,6 +870,7 @@ jQuery(async () => {
                     streamInterceptObserver.disconnect();
                     return;
                 }
+                
                 isResettingStream = true;
                 streamInterceptObserver.disconnect();
                 mesTextEl.innerHTML = originalHTML;
@@ -896,6 +897,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
+                            if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
                             
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
