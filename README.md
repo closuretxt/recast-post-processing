@@ -2,7 +2,7 @@
 
 ⚠️ CURRENTLY UNDER TESTING. I have no idea if it works on different workflows. ⚠️
 
-**Recast** is a SillyTavern extension that adds a highly configurable, multi-pass post-processing pipeline to any AI message output. Aiming towards improving the quality and coherence of the final message.
+**Recast** or **ST Post-Processing** is a SillyTavern extension that adds a highly configurable, multi-pass post-processing pipeline to any AI message output. Aiming towards improving the quality and coherence of the final message.
 
 In the near future, LLMs will be accompanied by output post-processing, allowing models to be corrected, realigned or to fulfill specific purposes without being overly instrusive.
 The main problem with LLMs cannot go back once their final response was generated or predict what they will say next, reasoning can help but it's still prone to context poisoning, semantic bleed, lack of creativity or lack of coherence.
