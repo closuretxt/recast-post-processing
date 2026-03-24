@@ -1178,7 +1178,7 @@ jQuery(async () => {
 
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
         initCompatibilityListeners(() => {
-            if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].hide_until_last && extension_settings[extensionName].compatibility_mode) {
+            if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
                 hideNextAiMessage = true;
                 logDebug('Recast: re-armed hideNextAiMessage after Stepped Thinking released mutex.');
             }
