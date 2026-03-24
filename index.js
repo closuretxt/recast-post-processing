@@ -865,6 +865,11 @@ jQuery(async () => {
             
             const observerCallback = () => {
                 if (isResettingStream) return;
+                const mesId = mesTextEl.closest('.mes')?.getAttribute('mesid');
+                if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) {
+                    streamInterceptObserver.disconnect();
+                    return;
+                }
                 isResettingStream = true;
                 streamInterceptObserver.disconnect();
                 mesTextEl.innerHTML = originalHTML;
@@ -889,6 +894,9 @@ jQuery(async () => {
                             node.classList.contains('mes') &&
                             node.getAttribute('is_user') !== 'true'
                         ) {
+                            const mesId = node.getAttribute('mesid');
+                            if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
+                            
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
                             if (mesTextEl) {
@@ -1023,7 +1031,7 @@ jQuery(async () => {
 
             const result = await runPipeline(msg.mes, mesId, isIntercepted);
             
-            setTimeout(() => recentProcessedMessages.delete(mesId), 5000);
+            setTimeout(() => recentProcessedMessages.delete(mesId), 5000); // this is some weird issue I can't seem to fix, so whatever make the message immune.
 
             if (result && result.skipped) {
                 if (isIntercepted) {
