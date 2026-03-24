@@ -59,7 +59,7 @@ function getST() {
 }
 
 // Debug function ofc
-function logDebug(...args) {
+export function logDebug(...args) {
     if (extension_settings[extensionName].debug_mode) {
         console.log("[Recast]", ...args);
     }
@@ -1213,6 +1213,8 @@ jQuery(async () => {
                 logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
                 return;
             }
+
+            //
 
             const chat = getST().chat;
             const msg = chat[mesId];

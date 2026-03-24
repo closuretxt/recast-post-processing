@@ -1,13 +1,18 @@
 // Compatibility module for other extensions
+
+// IMPORTS
 import { getContext } from "../../../../extensions.js";
 
-// Stepped Thinking specific variables
-let isSteppedThinkingActive = false;
+// VARIABLES
+const LOG_PREFIX = "[Recast Compatibility]";
 
-/**
- * Initializes listeners for specific extension events to prevent conflicts
- */
-export function initCompatibilityListeners(onHideNextAiMessageReArm) {
+let isSteppedThinkingActive = false; // Stepped Thinking specific variables
+
+// INIT
+// Initializes listeners for specific extension events to prevent conflicts
+export async function initCompatibilityListeners(onHideNextAiMessageReArm) {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
     const st = getContext();
     if (!st || !st.eventSource) return;
 
@@ -23,14 +28,9 @@ export function initCompatibilityListeners(onHideNextAiMessageReArm) {
             onHideNextAiMessageReArm();
         }
     });
-}
 
-/**
- * Checks if Stepped Thinking generation is currently active
- * @returns {boolean} True if active
- */
-export function isSteppedThinkingRunning() {
-    return isSteppedThinkingActive;
+    // Success
+    console.warn(`${LOG_PREFIX} Initialized.`);
 }
 
 /**
@@ -55,4 +55,9 @@ export function shouldIgnoreMessageReceived(compatibilityModeEnabled) {
         return true;
     }
     return false;
+}
+
+// Random Stuff
+export function isSteppedThinkingRunning() { // Checks if Stepped Thinking generation is currently active
+    return isSteppedThinkingActive;
 }
