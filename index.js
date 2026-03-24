@@ -113,15 +113,16 @@ function safeUpdateMessageText(mesId, msg) {
         }
     }
 
+    try {
+        updateMessageBlock(mesId, msg);
+    } catch (e) {
+        console.warn("Recast: Non-fatal error in updateMessageBlock", e);
+    }
     
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
     if (st.eventSource && st.event_types?.MESSAGE_UPDATED) {
-        try {
-            st.eventSource.emit(st.event_types.MESSAGE_UPDATED, mesId);
-        } catch (e) {
-            console.warn("Recast: Non-fatal error emitting MESSAGE_UPDATED", e);
-        }
+        st.eventSource.emit(st.event_types.MESSAGE_UPDATED, mesId);
     }
 }
 
@@ -134,6 +135,8 @@ let hideNextAiMessage = false;
 // Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
 let streamInterceptObserver = null;
 let isResettingStream = false;
+let streamInterceptToken = 0;
+let isGenerationStreaming = false;
 let isPipelineCancelled = false;
 let lastGenerationType = null;
 
@@ -848,26 +851,72 @@ jQuery(async () => {
 
     const st = getST();
     if (st.eventSource && st.event_types) {
+        //
+        function releaseStreamIntercept(delayMs = 0) {
+            const ActiveObserver = streamInterceptObserver;
+            if (!ActiveObserver) return;
+
+            // Invalidate pending observer callbacks immediately.
+            streamInterceptToken++;
+
+            const doRelease = () => {
+                try {
+                    ActiveObserver.disconnect();
+                } catch (e) {
+                    logDebug("Recast: non-fatal error while releasing stream intercept.", e);
+                }
+
+                if (streamInterceptObserver === ActiveObserver) {
+                    streamInterceptObserver = null;
+                }
+            };
+
+            if (delayMs > 0) {
+                setTimeout(doRelease, delayMs);
+            } else {
+                doRelease();
+            }
+        }
+
+        //
+        function waitMs(delayMs) {
+            return new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+
+        //
+        async function waitForGenerationStop(maxWaitMs = 2500) {
+            const startTime = performance.now();
+            while (isGenerationStreaming && (performance.now() - startTime) < maxWaitMs) {
+                await waitMs(25);
+            }
+        }
+
         // Helper: attach a MutationObserver on a .mes_text element that blanks any content
         // update while the pipeline is pending, creating a "char is typing..." visual.
         function attachStreamIntercept(mesTextEl, preserveText = false) {
-            if (streamInterceptObserver) streamInterceptObserver.disconnect();
+            releaseStreamIntercept();
+
             const originalHTML = preserveText ? mesTextEl.innerHTML : '';
             if (!preserveText) {
                 mesTextEl.innerHTML = '';
             }
+            const myToken = ++streamInterceptToken;
             
             const observerCallback = () => {
+                if (myToken !== streamInterceptToken) return;
                 if (isResettingStream) return;
                 isResettingStream = true;
-                streamInterceptObserver.disconnect();
+                LocalObserver.disconnect();
                 mesTextEl.innerHTML = originalHTML;
-                streamInterceptObserver.observe(mesTextEl, { childList: true, subtree: true, characterData: true });
+                if (myToken === streamInterceptToken) {
+                    LocalObserver.observe(mesTextEl, { childList: true, subtree: true, characterData: true });
+                }
                 isResettingStream = false;
             };
 
-            streamInterceptObserver = new MutationObserver(observerCallback);
-            streamInterceptObserver.observe(mesTextEl, { childList: true, subtree: true, characterData: true });
+            const LocalObserver = new MutationObserver(observerCallback);
+            streamInterceptObserver = LocalObserver;
+            LocalObserver.observe(mesTextEl, { childList: true, subtree: true, characterData: true });
         }
 
         // MutationObserver on #chat: intercept the new AI message node the instant it is
@@ -901,6 +950,7 @@ jQuery(async () => {
         st.eventSource.on(st.event_types.GENERATION_STARTED, (type, _opts, dryRun) => {
             lastGenerationType = type;
             if (dryRun) return;
+            isGenerationStreaming = true;
             if (!extension_settings[extensionName].enabled) return;
             if (!extension_settings[extensionName].autorun) return;
             if (!extension_settings[extensionName].hide_until_last) return;
@@ -933,12 +983,10 @@ jQuery(async () => {
 
         // If generation is stopped/aborted, clean up the intercept and restore the raw content.
         st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
+            isGenerationStreaming = false;
             hideNextAiMessage = false;
             isPipelineCancelled = true;
-            if (streamInterceptObserver) {
-                streamInterceptObserver.disconnect();
-                streamInterceptObserver = null;
-            }
+            releaseStreamIntercept();
             if (extension_settings[extensionName].hide_until_last && extension_settings[extensionName].autorun) {
                 const st2 = getST();
                 const mesId = st2.chat.length - 1;
@@ -1004,12 +1052,13 @@ jQuery(async () => {
             const originalText = msg.mes;
 
             // ST is done streaming — release the intercept lock NOW, before the pipeline runs.
-            // This prevents any timing issue where a pending mutation callback could blank
-            // content that streamResult writes after the pipeline.
+            // Wait until GENERATION_STOPPED confirms stream end. Some providers can emit
+            // MESSAGE_RECEIVED slightly early while final token/UI mutations still flush.
             if (streamInterceptObserver) {
-                streamInterceptObserver.disconnect();
-                streamInterceptObserver = null;
-                logDebug('Recast: stream intercept released at MESSAGE_RECEIVED.');
+                await waitForGenerationStop(2500);
+                await waitMs(80);
+                releaseStreamIntercept();
+                logDebug('Recast: stream intercept released after generation stop + grace delay.');
             }
 
             //
