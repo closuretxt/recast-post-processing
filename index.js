@@ -1,6 +1,6 @@
 import { extension_settings, getContext } from "../../../extensions.js";
 import { showDiffModal, initDiffViewer } from "./diffViewer.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState } from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled } from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
@@ -364,7 +364,7 @@ function addPassToUI(pass = null) {
     });
     
     item.find(".pass-toggle-details").on("click", function() {
-        $(this).closest(".recast-pass-item").find(".recast-pass-details").toggle();
+        $(this).closest(".recast-pass-item").find(".recast-pass-details").toggle(); 
         $(this).toggleClass("fa-chevron-down fa-chevron-up");
     });
     
@@ -535,10 +535,10 @@ async function runPass(pass, text, onChunk = null) {
             return "";
         }
         
-        const isStreamingEnabled = extension_settings[extensionName].stream_pipeline;
+        const isPipelineStreamingEnabled = extension_settings[extensionName].stream_pipeline && isSTStreamingEnabled();
 
         try {
-            result = await requestPass(ConnectionProfile, isStreamingEnabled);
+            result = await requestPass(ConnectionProfile, isPipelineStreamingEnabled);
         } catch (firstError) {
             const fallbackProfile = resolveConnectionProfile(st, "");
             const retryWithFallbackProfile = shouldRetryRequest(firstError) && fallbackProfile !== ConnectionProfile;
@@ -624,9 +624,9 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         
         const isLastPass = i === enabledPasses.length - 1;
         const hideUntilLast = extension_settings[extensionName].hide_until_last;
-        const isStreamingEnabled = extension_settings[extensionName].stream_pipeline;
+        const isPipelineStreamingEnabled = extension_settings[extensionName].stream_pipeline && isSTStreamingEnabled();
 
-        const shouldStreamInline = isStreamingEnabled && (isLastPass || !hideUntilLast) && currentMessageId !== null;
+        const shouldStreamInline = isPipelineStreamingEnabled && (isLastPass || !hideUntilLast) && currentMessageId !== null;
 
         let lastRegexTime = 0;
         let lastRegexResult = "";
