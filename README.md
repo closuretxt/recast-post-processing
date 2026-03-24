@@ -2,6 +2,17 @@
 
 ⚠️ CURRENTLY UNDER TESTING. I have no idea if it works on different workflows. ⚠️
 
+## 🚀 Installation
+
+1. Open SillyTavern, go to the Extensions menu (boxes icon).
+2. Click "Install Extension" at the top right.
+3. Paste this URL and click 'Install for me':
+```plaintext
+https://github.com/closuretxt/recast-post-processing
+```
+
+## About Post Processing
+
 **Recast** or **ST Post-Processing** is a SillyTavern extension that adds a highly configurable, multi-pass post-processing pipeline to any AI message output. Aiming towards improving the quality and coherence of the final message.
 
 In the near future, LLMs will be accompanied by output post-processing, allowing models to be corrected, realigned or to fulfill specific purposes without being overly instrusive.
@@ -44,13 +55,6 @@ Essentially, this picks up a response, processes it through each pass in your pi
 - **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing other extensions & information to be used in specific passes. Recast also exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
 - **Simple Direct Design:** We kept everything compact and direct, with advanced options being optional.
 ![Extension UI](https://raw.githubusercontent.com/closuretxt/closure-imgdump/refs/heads/main/extension%20ui%202.png)
-
-## 🚀 Installation
-
-1. Open SillyTavern.
-2. Go to the Extensions menu (plug icon).
-3. Click "Install Extension".
-4. Paste the URL of this repository and click Install. (https://github.com/closuretxt/recast-post-processing)
 
 ## 💡 Usage Guide
 

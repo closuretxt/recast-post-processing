@@ -1,6 +1,5 @@
 // IMPORTS
 import { extension_settings, getContext } from "../../../extensions.js";
-import { showDiffModal, initDiffViewer } from "./diffViewer.js";
 import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled } from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
@@ -9,6 +8,10 @@ import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
 import { defaultPresets } from "./defaultPresets.js";
 
+// Self Util
+import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
+import { swapProfile } from "./util/profileSwapper.js";
+
 // Setup
 const extensionName = "Recast";
 const extensionFolderPath = `scripts/extensions/third-party/recast-post-processing`;
@@ -16,14 +19,16 @@ const extensionSettings = extension_settings[extensionName];
 
 const defaultSettings = {
     enabled: true,
-    autorun: true,
-    inject: true,
-    replace_inline: false,
-    hide_until_last: true,
-    stream_pipeline: true,
+    autorun: true, // Runs on gen
+    inject: true, // Should edit messages with new content
+    replace_inline: false, // If it should edit messages as the pipeline runs
+    hide_until_last: true, // Skips all message edit and hides the message until pipeline is about to end
+    stream_pipeline: true, // Streaming, has to have default sillystreaming enabled too
     debug_mode: false,
-    disable_editable_diff: true,
-    min_chars: 10,
+    disable_editable_diff: true, // Disables the edit field in the diff viewer
+    legacy_api: false, // Swaps profiles and waits for them before doing the request, useful for fixing some issues with root ST code
+    min_chars: 10, // Skips if there's not enough characters. Useful for preventing rejections or shortcomings from triggering pipeline
+    
     presets: defaultPresets,
     active_preset: "Default Preset"
 };
@@ -115,6 +120,13 @@ function parse_reasoning(text, profile_id) { // thanks qvink
 
     logDebug("Parsed reasoning: ", parsed);
     return parsed.content || text;
+}
+
+function getProfileNameById(st, profileId) {
+    if (!profileId) return null;
+    const Profiles = getConnectionProfiles(st);
+    const profile = Profiles.find(p => p.id === profileId);
+    return profile ? profile.name : null;
 }
 
 function resolveConnectionProfile(st, preferredProfileId = "") {
@@ -252,6 +264,7 @@ async function loadSettings() {
     $("#recast_stream_pipeline").prop("checked", extension_settings[extensionName].stream_pipeline);
     $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
     $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
+    $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
 
     populatePresetDropdown();
@@ -267,12 +280,14 @@ function saveSettings() {
     extension_settings[extensionName].stream_pipeline = $("#recast_stream_pipeline").prop("checked");
     extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
     extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
+    extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
     
     saveActivePreset();
     saveSettingsDebounced();
 }
 
+// PRESET stuff
 function populateConnectionDropdown(selectElement, currentValue) {
     const st = getST();
     selectElement.empty();
@@ -294,7 +309,6 @@ function populateConnectionDropdown(selectElement, currentValue) {
     }
 }
 
-// PRESET stuff
 function getActivePresetIndex() {
     return extension_settings[extensionName].presets.findIndex(p => p.name === extension_settings[extensionName].active_preset);
 }
@@ -519,6 +533,8 @@ async function runPass(pass, text, onChunk = null) {
         logDebug("User prompt:", userPrompt);
 
         const ConnectionProfile = resolveConnectionProfile(st, pass.connection || "");
+        const TargetProfileName = getProfileNameById(st, ConnectionProfile);
+        const OriginalProfileName = st.extensionSettings?.connectionManager?.selectedProfileName || getProfileNameById(st, resolveConnectionProfile(st, ""));
 
         const messages = [
             { role: "system", content: systemPrompt },
@@ -526,8 +542,18 @@ async function runPass(pass, text, onChunk = null) {
         ];
 
         let result = "";
+        let swappedProfile = false;
 
         async function requestPass(connectionProfileId, streamMode) {
+            if (extension_settings[extensionName].legacy_api) {
+                if (TargetProfileName && TargetProfileName !== OriginalProfileName) {
+                    const swapSuccess = await swapProfile(TargetProfileName, OriginalProfileName);
+                    if (swapSuccess) {
+                        swappedProfile = true;
+                    }
+                }
+            }
+
             if (!st.ConnectionManagerRequestService || !st.ConnectionManagerRequestService.sendRequest) {
                 throw new Error("ConnectionManagerRequestService.sendRequest is unavailable.");
             }
@@ -575,11 +601,11 @@ async function runPass(pass, text, onChunk = null) {
         } catch (firstError) {
             const fallbackProfile = resolveConnectionProfile(st, "");
             const retryWithFallbackProfile = shouldRetryRequest(firstError) && fallbackProfile !== ConnectionProfile;
-            const retryWithoutStreaming = isStreamingEnabled;
+            const retryWithoutStreaming = isPipelineStreamingEnabled; // fixing undefined variable
 
             if (retryWithFallbackProfile || retryWithoutStreaming) {
                 const RetryProfile = retryWithFallbackProfile ? fallbackProfile : ConnectionProfile;
-                const RetryStream = retryWithoutStreaming ? false : isStreamingEnabled;
+                const RetryStream = retryWithoutStreaming ? false : isPipelineStreamingEnabled;
                 logDebug(
                     `Pass ${pass.name}: first request failed (status=${getErrorStatusCode(firstError) ?? "unknown"}). ` +
                     `Retrying with profile='${RetryProfile || "<same-as-current>"}', stream=${RetryStream}`
@@ -587,6 +613,10 @@ async function runPass(pass, text, onChunk = null) {
                 result = await requestPass(RetryProfile, RetryStream);
             } else {
                 throw firstError;
+            }
+        } finally {
+            if (swappedProfile && OriginalProfileName) {
+                await swapProfile(OriginalProfileName, TargetProfileName);
             }
         }
 
@@ -922,7 +952,7 @@ jQuery(async () => {
     registerMacros();
     initDiffViewer();
 
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
     
     // Preset Buttons
