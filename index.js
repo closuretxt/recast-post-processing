@@ -195,9 +195,12 @@ function showErrorToast(passName, error) {
 
 // CORE Silly
 // setButtonState AKA block all generations. If there's any other better way to do this please tell me... It has to yield other extensions like qvink and vectorization.
-function setButtonState(state) {
+function setButtonState(state) { // False unlocks, true locks it
     if (typeof setSendButtonState === 'function') {
         setSendButtonState(state);
+    }
+    if (!state) {
+        $('.swipe_left.fa-solid.fa-chevron-left.interactable').css('opacity', '0.6');
     }
 }
 
