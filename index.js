@@ -74,6 +74,33 @@ function hasConnectionProfile(st, profileId) {
     return Profiles.some(p => p.id === profileId);
 }
 
+function parse_reasoning(text, profile_id) { // thanks qvink
+    let ctx = getST();
+    
+    if (typeof ctx.parseReasoningFromString !== 'function' || typeof ctx.getReasoningTemplateByName !== 'function') {
+        return text;
+    }
+
+    const Profiles = getConnectionProfiles(ctx);
+    let profile_data = Profiles.find(p => p.id === profile_id);
+    if (!profile_data) return text;
+
+    let template_name = profile_data["reasoning-template"];
+    if (!template_name) {
+        logDebug("No reasoning template specified in profile");
+        return text;
+    }
+
+    let template = ctx.getReasoningTemplateByName(template_name);
+    if (!template) return text;
+
+    let parsed = ctx.parseReasoningFromString(text, {}, template);
+    if (!parsed?.reasoning) return text;  // no reasoning
+
+    logDebug("Parsed reasoning: ", parsed);
+    return parsed.content || text;
+}
+
 function resolveConnectionProfile(st, preferredProfileId = "") {
     const SelectedProfile = st?.extensionSettings?.connectionManager?.selectedProfile || "";
 
@@ -557,6 +584,7 @@ async function runPass(pass, text, onChunk = null) {
             }
         }
 
+        result = parse_reasoning(result, ConnectionProfile);
         logDebug("Pass result:", result);
         return result || text;
     } catch (e) {
