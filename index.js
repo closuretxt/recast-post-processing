@@ -1176,45 +1176,10 @@ jQuery(async () => {
             }
         });
 
-        // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
-        initCompatibilityListeners(() => {
-            if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
-                hideNextAiMessage = true;
-                logDebug('Recast: re-armed hideNextAiMessage after Stepped Thinking released mutex.');
-            }
-        });
-
-        // If generation is stopped/aborted, clean up the intercept and restore the raw content.
-        st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
-            hideNextAiMessage = false;
-            isPipelineCancelled = true;
-            if (streamInterceptObserver) {
-                streamInterceptObserver.disconnect();
-                streamInterceptObserver = null;
-            }
-            if (extension_settings[extensionName].hide_until_last && extension_settings[extensionName].autorun) {
-                const st2 = getST();
-                const mesId = st2.chat.length - 1;
-                if (mesId >= 0 && st2.chat[mesId]) {
-                    safeUpdateMessageText(mesId, st2.chat[mesId]);
-                    logDebug(`Recast: generation stopped — restored content of mesid=${mesId}.`);
-                }
-            }
-        });
-
-    // MESSAGE_RECEIVED EVENT
-    st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
+        async function triggerPipelineOnMessage(mesId) {
             if (!extension_settings[extensionName].autorun) return;
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;
             if (mesId === 0) return; // uhh funny silly tavern
-
-            // Compatibility module checks if this should run or not.
-            if (shouldIgnoreMessageReceived(extension_settings[extensionName].compatibility_mode)) {
-                logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
-                return;
-            }
-
-            //
 
             const chat = getST().chat;
             const msg = chat[mesId];
@@ -1297,6 +1262,45 @@ jQuery(async () => {
                 // If it wasn't intercepted but we are running in MESSAGE_RECEIVED skipHide logic
                 isProcessing = false;
             }
+        }
+
+        // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
+        initCompatibilityListeners(() => {
+            if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
+                logDebug('Recast: Stepped Thinking released mutex. Triggering pipeline directly.');
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                triggerPipelineOnMessage(mesId);
+            }
+        });
+
+        // If generation is stopped/aborted, clean up the intercept and restore the raw content.
+        st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
+            hideNextAiMessage = false;
+            isPipelineCancelled = true;
+            if (streamInterceptObserver) {
+                streamInterceptObserver.disconnect();
+                streamInterceptObserver = null;
+            }
+            if (extension_settings[extensionName].hide_until_last && extension_settings[extensionName].autorun) {
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                if (mesId >= 0 && st2.chat[mesId]) {
+                    safeUpdateMessageText(mesId, st2.chat[mesId]);
+                    logDebug(`Recast: generation stopped — restored content of mesid=${mesId}.`);
+                }
+            }
+        });
+
+    // MESSAGE_RECEIVED EVENT
+    st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
+            // Compatibility module checks if this should run or not.
+            if (shouldIgnoreMessageReceived(extension_settings[extensionName].compatibility_mode)) {
+                logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
+                return;
+            }
+
+            await triggerPipelineOnMessage(mesId);
         });
     }
 });
