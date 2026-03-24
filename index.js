@@ -242,11 +242,11 @@ function safeUpdateMessageText(mesId, msg) {
         console.warn("Recast: Non-fatal error in updateMessageBlock", e);
     }
 
-    //try {
-    //    redisplayChat(mesId, msg);
-    //} catch (e) {
-    //    console.warn("Recast: Non-fatal error in redisplayChat", e);
-    //}
+    try {
+        redisplayChat(); // Setup Here
+    } catch (e) {
+        console.warn("Recast: Non-fatal error in redisplayChat", e);
+    }
 
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
@@ -1070,7 +1070,6 @@ jQuery(async () => {
     const st = getST();
     if (st.eventSource && st.event_types) { // bro is checking for nothing lmaoo // this is some real vibecode stuff
         // Helper: attach a MutationObserver on a .mes_text element that blanks any content
-        // update while the pipeline is pending, creating a "char is typing..." visual.
         function attachStreamIntercept(mesTextEl, preserveText = false) {
             if (streamInterceptObserver) streamInterceptObserver.disconnect();
             const originalHTML = preserveText ? mesTextEl.innerHTML : '';
@@ -1103,6 +1102,7 @@ jQuery(async () => {
         if (chatDomEl) {
             const chatObserver = new MutationObserver((mutations) => {
                 if (!hideNextAiMessage) return;
+                if (!extension_settings[extensionName].hide_until_last) return; // If the user doesn't want to hide anything in the first place, then this is useless.
                 for (const mutation of mutations) {
                     for (const node of mutation.addedNodes) {
                         if (
@@ -1112,7 +1112,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            //if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
+                            if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
                             
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
