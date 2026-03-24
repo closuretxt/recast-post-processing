@@ -11,6 +11,8 @@ import { defaultPresets } from "./defaultPresets.js";
 // Self Util
 import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
 import { swapProfile } from "./util/profileSwapper.js";
+// Compatibility Extensions
+import { initCompatibilityListeners, shouldSkipStreamIntercept, shouldIgnoreMessageReceived } from "./util/compatibility.js";
 
 // Setup
 const extensionName = "Recast";
@@ -27,6 +29,7 @@ const defaultSettings = {
     debug_mode: false,
     disable_editable_diff: true, // Disables the edit field in the diff viewer
     legacy_api: false, // Swaps profiles and waits for them before doing the request, useful for fixing some issues with root ST code
+    compatibility_mode: false, // Enables compatibility fixes for other extensions
     min_chars: 10, // Skips if there's not enough characters. Useful for preventing rejections or shortcomings from triggering pipeline
     
     presets: defaultPresets,
@@ -242,11 +245,11 @@ function safeUpdateMessageText(mesId, msg) {
         console.warn("Recast: Non-fatal error in updateMessageBlock", e);
     }
 
-    try {
-        redisplayChat(); // Setup Here
-    } catch (e) {
-        console.warn("Recast: Non-fatal error in redisplayChat", e);
-    }
+    //try {
+    //    redisplayChat(); // Setup Here
+    //} catch (e) {
+    //    console.warn("Recast: Non-fatal error in redisplayChat", e);
+    //}
 
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
@@ -962,8 +965,13 @@ jQuery(async () => {
     registerMacros();
     initDiffViewer();
 
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
+
+    // Compatibility warn
+    $("#recast_compatibility").on("change", function() {
+        toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
+    });
     
     // Preset Buttons
     $("#recast_preset_select").on("change", function() {
@@ -1114,6 +1122,12 @@ jQuery(async () => {
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
                             if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
                             
+                            // Compatibility module checks if this should run or not.
+                            if (shouldSkipStreamIntercept(extension_settings[extensionName].compatibility_mode)) {
+                                logDebug('Recast: skipping stream intercept because a compatible extension is running.');
+                                return;
+                            }
+                            
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
                             if (mesTextEl) {
@@ -1162,6 +1176,14 @@ jQuery(async () => {
             }
         });
 
+        // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
+        initCompatibilityListeners(() => {
+            if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].hide_until_last && extension_settings[extensionName].compatibility_mode) {
+                hideNextAiMessage = true;
+                logDebug('Recast: re-armed hideNextAiMessage after Stepped Thinking released mutex.');
+            }
+        });
+
         // If generation is stopped/aborted, clean up the intercept and restore the raw content.
         st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
             hideNextAiMessage = false;
@@ -1185,6 +1207,12 @@ jQuery(async () => {
             if (!extension_settings[extensionName].autorun) return;
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;
             if (mesId === 0) return; // uhh funny silly tavern
+
+            // Compatibility module checks if this should run or not.
+            if (shouldIgnoreMessageReceived(extension_settings[extensionName].compatibility_mode)) {
+                logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
+                return;
+            }
 
             const chat = getST().chat;
             const msg = chat[mesId];
