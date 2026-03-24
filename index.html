@@ -21,15 +21,11 @@
                 
                 <label class="checkbox_label" title="Enable the entire Recast pipeline">
                     <input type="checkbox" id="recast_enabled" />
-                    <span>Enable Pipeline</span>
+                    <span>Enable Extension</span>
                 </label>
                 <label class="checkbox_label" title="Automatically run on every new AI generation">
                     <input type="checkbox" id="recast_autorun" />
                     <span>Auto-run on generation</span>
-                </label>
-                <label class="checkbox_label" title="Inject the post-processed text back into the context for future messages">
-                    <input type="checkbox" id="recast_inject" />
-                    <span>Inject output back to context</span>
                 </label>
                 <label class="checkbox_label" title="Replace message text immediately, skipping the diff review">
                     <input type="checkbox" id="recast_replace_inline" />
@@ -39,23 +35,10 @@
                     <input type="checkbox" id="recast_hide_until_last" />
                     <span>Hide until last pass</span>
                 </label>
-                <label class="checkbox_label" title="Stream the pipeline text generation inline">
-                    <input type="checkbox" id="recast_stream_pipeline" />
-                    <span>Stream Pipeline Output</span>
-                </label>
-                <label class="checkbox_label" title="Print verbose logs to console for debugging">
-                    <input type="checkbox" id="recast_debug_mode" />
-                    <span>Debug Mode</span>
-                </label>
-                <label class="checkbox_label" title="Disable the editable diff viewer textarea">
+                <label class="checkbox_label" title="Disable the editable section on diff">
                     <input type="checkbox" id="recast_disable_editable_diff" />
                     <span>Disable Editable Diff</span>
                 </label>
-
-                <div class="flex-container alignitemscenter" style="margin-top: 8px;" title="Skip the pipeline if the message has fewer characters than this value (0 = disabled)">
-                    <span style="min-width: 160px;">Min. Characters (0 = off):</span>
-                    <input type="number" id="recast_min_chars" class="text_pole flex1" value="0" min="0" step="1" />
-                </div>
 
                 <hr>
 
@@ -77,6 +60,39 @@
                 
                 <div class="flex-container justifyspacebetween alignitemscenter" style="margin-top: 10px;">
                     <button id="recast_add_pass" class="menu_button flex1 fa-solid fa-plus" title="Add a new pass"><span>Add Pass</span></button>
+                </div>
+
+                <hr>
+
+                <div class="inline-drawer">
+                    <div class="inline-drawer-toggle inline-drawer-header">
+                        <div class="flex-container alignitemscenter justifycenter margin0 flex1">
+                            <b>Advanced Settings</b>
+                        </div>
+                        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                    </div>
+                    <div class="inline-drawer-content">
+                        <label class="checkbox_label" title="Inject the post-processed text back into the context for future messages">
+                            <input type="checkbox" id="recast_inject" />
+                            <span>Inject output back to context</span>
+                        </label>
+                        <label class="checkbox_label" title="Stream the pipeline text generation inline">
+                            <input type="checkbox" id="recast_stream_pipeline" />
+                            <span>Stream Pipeline Output</span>
+                        </label>
+                        <label class="checkbox_label" title="Print verbose logs to console for debugging">
+                            <input type="checkbox" id="recast_debug_mode" />
+                            <span>Debug Mode</span>
+                        </label>
+                        <label class="checkbox_label" title="Enable this if you are having API issues with passes">
+                            <input type="checkbox" id="recast_legacy_api" />
+                            <span>Legacy Connection Profile</span>
+                        </label>
+                        <div class="flex-container alignitemscenter" style="margin-top: 8px;" title="Skip the pipeline if the message has fewer characters than this value (0 = disabled)">
+                            <span style="min-width: 160px;">Min. Characters (0 = off):</span>
+                            <input type="number" id="recast_min_chars" class="text_pole flex1" value="0" min="0" step="1" />
+                        </div>
+                    </div>
                 </div>
                 
             </div>
