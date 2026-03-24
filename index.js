@@ -44,18 +44,36 @@ function logDebug(...args) {
 function showErrorToast(passName, error) {
     if (typeof toastr !== 'undefined' && toastr.error) {
         let errorMsg = error.message || String(error);
+
+        // If it's an object with nothing useful, try to stringify
+        if (errorMsg === "[object Object]") {
+            try {
+                errorMsg = JSON.stringify(error);
+            } catch (e) {
+                errorMsg = "Unknown object error";
+            }
+        }
+
+        // Sometimes API errors have detailed objects inside
         if (error.response && error.response.data) {
             try {
                 errorMsg += "\nDetails: " + JSON.stringify(error.response.data);
             } catch(e) {}
         } else if (error.error && error.error.message) {
             errorMsg += "\nDetails: " + error.error.message;
-        } else if (typeof error === 'object') {
+        } else if (error.message && Object.keys(error).length > 1) {
+            // It has a message but maybe more details
             try {
-                errorMsg = JSON.stringify(error);
+                // Avoid circular structures, but try to extract more details
+                const cleanErr = { ...error };
+                delete cleanErr.message;
+                delete cleanErr.stack;
+                if (Object.keys(cleanErr).length > 0) {
+                    errorMsg += "\nDetails: " + JSON.stringify(cleanErr);
+                }
             } catch(e) {}
         }
-        toastr.error(`Error in pass "${passName}": ${errorMsg}`, "Recast Error", { timeOut: 10000 });
+        toastr.error(`Check your Connection Profile. Error in pass "${passName}": ${errorMsg}`, "Recast Error", { timeOut: 10000 });
     }
 }
 
