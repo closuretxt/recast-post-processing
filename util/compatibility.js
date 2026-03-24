@@ -39,7 +39,10 @@ export async function initCompatibilityListeners(onHideNextAiMessageReArm) {
  * @returns {boolean} True if it should be skipped
  */
 export function shouldSkipStreamIntercept(compatibilityModeEnabled) {
-    if (compatibilityModeEnabled && isSteppedThinkingRunning()) {
+    if (!compatibilityModeEnabled) return;
+
+    if (isSteppedThinkingRunning()) {
+        console.warn(`${LOG_PREFIX} [shouldSkipStreamIntercept] true because [isSteppedThinkingRunning].`);
         return true;
     }
     return false;
@@ -51,13 +54,16 @@ export function shouldSkipStreamIntercept(compatibilityModeEnabled) {
  * @returns {boolean} True if it should be ignored
  */
 export function shouldIgnoreMessageReceived(compatibilityModeEnabled) {
-    if (compatibilityModeEnabled && isSteppedThinkingRunning()) {
+    if (!compatibilityModeEnabled) return;
+
+    if (isSteppedThinkingRunning()) {
+        console.warn(`${LOG_PREFIX} [shouldIgnoreMessageReceived] true because [isSteppedThinkingRunning].`);
         return true;
     }
     return false;
 }
 
-// Random Stuff
+// Bool Stuff
 export function isSteppedThinkingRunning() { // Checks if Stepped Thinking generation is currently active
     return isSteppedThinkingActive;
 }

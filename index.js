@@ -61,7 +61,7 @@ function getST() {
 // Debug function ofc
 export function logDebug(...args) {
     if (extension_settings[extensionName].debug_mode) {
-        console.log("[Recast]", ...args);
+        console.log("[Recast Debug]", ...args);
     }
 }
 
@@ -278,6 +278,7 @@ async function loadSettings() {
     $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
     $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
     $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
+    $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
 
     populatePresetDropdown();
@@ -294,6 +295,7 @@ function saveSettings() {
     extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
     extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
     extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
+    extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
     
     saveActivePreset();
@@ -1274,6 +1276,17 @@ jQuery(async () => {
             }
         });
 
+        // MESSAGE_RECEIVED EVENT
+        st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
+            // Compatibility module checks if this should run or not.
+            if (shouldIgnoreMessageReceived(extension_settings[extensionName].compatibility_mode)) {
+                logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
+                return;
+            }
+
+            await triggerPipelineOnMessage(mesId);
+        });
+
         // If generation is stopped/aborted, clean up the intercept and restore the raw content.
         st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
             hideNextAiMessage = false;
@@ -1290,17 +1303,6 @@ jQuery(async () => {
                     logDebug(`Recast: generation stopped — restored content of mesid=${mesId}.`);
                 }
             }
-        });
-
-    // MESSAGE_RECEIVED EVENT
-    st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
-            // Compatibility module checks if this should run or not.
-            if (shouldIgnoreMessageReceived(extension_settings[extensionName].compatibility_mode)) {
-                logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
-                return;
-            }
-
-            await triggerPipelineOnMessage(mesId);
         });
     }
 });
