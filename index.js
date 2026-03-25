@@ -211,6 +211,12 @@ function setButtonState(state) { // False unlocks, true locks it
 
 // Makes sure to update the message in chat. Had a lot of trouble in the past with this so there may be a bit too much stuff
 function safeUpdateMessageText(mesId, msg) {
+    try {
+        updateMessageBlock(mesId, msg);
+    } catch (e) {
+        console.warn("Recast: Non-fatal error in updateMessageBlock", e);
+    }
+
     const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
     if (mesEl.length > 0) {
         const mesTextEl = mesEl.find('.mes_text');
@@ -246,19 +252,13 @@ function safeUpdateMessageText(mesId, msg) {
     //    console.warn("Recast: Non-fatal error in redisplayChat", e);
     //}
 
-    try {
-        updateMessageBlock(mesId, msg);
-    } catch (e) {
-        console.warn("Recast: Non-fatal error in updateMessageBlock", e);
-    }
-
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
-    if (st.eventSource && st.event_types?.MESSAGE_UPDATED) {
+    if (st.eventSource && st.event_types?.MESSAGE_EDITED) {
         try {
-            st.eventSource.emit(st.event_types.MESSAGE_UPDATED, mesId);
+            st.eventSource.emit(st.event_types.MESSAGE_EDITED, mesId);
         } catch (e) {
-            console.warn("Recast: Non-fatal error emitting MESSAGE_UPDATED", e);
+            console.warn("Recast: Non-fatal error emitting MESSAGE_EDITED", e);
         }
     }
 }
@@ -1147,15 +1147,21 @@ jQuery(async () => {
 
         // Pipeline
         async function triggerPipelineOnMessage(mesId) {
+            const skip = skipGenTypecheck;
+            skipGenTypecheck = false;
+
             if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
-            if (!skipGenTypecheck && !['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
+            if (!skip && !['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { 
+                logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); 
+                return; 
+            }
+            lastGenerationType = null; // Consume it so it doesn't leak into next call
+
             if (mesId === 0) { logDebug("triggerPipelineOnMessage: mesId is 0, returning"); return; } // uhh funny silly tavern
 
             const chat = getST().chat;
             const msg = chat[mesId];
             if (!msg || msg.is_user) { logDebug("triggerPipelineOnMessage: msg is null or is_user, returning"); return; }
-
-            skipGenTypecheck = false
             // Capture whether streaming was being intercepted (determines the display path)
             const isIntercepted = streamInterceptObserver !== null;
             // Save the original (unprocessed) text before the pipeline modifies it
@@ -1236,24 +1242,6 @@ jQuery(async () => {
             }
         }
 
-        // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
-        if (extension_settings[extensionName].compatibility_mode) { // Makes sure Compatibility won't be touched unless the user enables it
-            initCompatibilityListeners(() => {
-                if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
-                    logDebug(`Recast: Stepped Thinking released mutex.`);
-                    skipGenTypecheck = true
-
-                    // Stepped Thinking might take a few milliseconds to put the actual message in
-                    //setTimeout(() => {
-                        //const st2 = getST();
-                        //const mesId = st2.chat.length;
-                        //logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
-                        //triggerPipelineOnMessage(mesId, true);
-                    //}, 200);
-                }
-            });
-        }
-
         // When generation starts, set up interception before any token arrives.
         st.eventSource.on(st.event_types.GENERATION_STARTED, (type, _opts, dryRun) => {
             lastGenerationType = type;
@@ -1316,5 +1304,23 @@ jQuery(async () => {
                 }
             }
         });
+
+        // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
+        if (extension_settings[extensionName].compatibility_mode) { // Makes sure Compatibility won't be touched unless the user enables it
+            initCompatibilityListeners(() => {
+                if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
+                    logDebug(`Recast: Stepped Thinking released mutex.`);
+                    skipGenTypecheck = true
+
+                    // Stepped Thinking might take a few milliseconds to put the actual message in
+                    //setTimeout(() => {
+                        //const st2 = getST();
+                        //const mesId = st2.chat.length;
+                        //logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
+                        //triggerPipelineOnMessage(mesId, true);
+                    //}, 200);
+                }
+            });
+        }
     }
 });
