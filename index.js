@@ -42,6 +42,7 @@ let isProcessing = false;
 let currentMessageId = null;
 // Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
 let hideNextAiMessage = false;
+let skipNextIntercept = false;
 // Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
 let streamInterceptObserver = null;
 let isResettingStream = false;
