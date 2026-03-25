@@ -1145,9 +1145,9 @@ jQuery(async () => {
         }
 
         // Pipeline
-        async function triggerPipelineOnMessage(mesId) {
+        async function triggerPipelineOnMessage(mesId, skipGenTypecheck) {
             if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
-            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
+            if (!skipGenTypecheck && !['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
             if (mesId === 0) { logDebug("triggerPipelineOnMessage: mesId is 0, returning"); return; } // uhh funny silly tavern
 
             const chat = getST().chat;
@@ -1241,7 +1241,7 @@ jQuery(async () => {
                 const mesId = st2.chat.length;
                 
                 logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
-                triggerPipelineOnMessage(mesId);
+                triggerPipelineOnMessage(mesId, true);
             }
         });
 
@@ -1251,6 +1251,7 @@ jQuery(async () => {
             if (dryRun) return;
             if (!extension_settings[extensionName].enabled) return;
             if (!extension_settings[extensionName].autorun) return;
+            if (!extension_settings[extensionName].hide_until_last) return;
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
 
             // Only bother if there are passes that will actually run
@@ -1261,21 +1262,15 @@ jQuery(async () => {
 
             if (type === 'swipe' || type === 'regenerate' || type === 'continue') {
                 // Swipe/regenerate update an existing element — blank its text directly now
-                if (extension_settings[extensionName].hide_until_last) {
-                    const st2 = getST();
-                    const mesId = st2.chat.length - 1;
-                    if (mesId >= 0 && st2.chat[mesId] && !st2.chat[mesId].is_user) {
-                        const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
-                        const mesTextEl = mesEl?.querySelector('.mes_text');
-                        if (mesTextEl) {
-                            attachStreamIntercept(mesTextEl, type === 'continue');
-                            logDebug(`Recast: [GENERATION_STARTED] stream intercepted on ${type} mesid=${mesId}.`);
-                        }
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                if (mesId >= 0 && st2.chat[mesId] && !st2.chat[mesId].is_user) {
+                    const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
+                    const mesTextEl = mesEl?.querySelector('.mes_text');
+                    if (mesTextEl) {
+                        attachStreamIntercept(mesTextEl, type === 'continue');
+                        logDebug(`Recast: [GENERATION_STARTED] stream intercepted on ${type} mesid=${mesId}.`);
                     }
-                }
-
-                if (extension_settings[extensionName].compatibility_mode) {
-                    triggerPipelineOnMessage(mesId);
                 }
             } else {
                 // New message: MutationObserver will catch it the instant the DOM node appears
