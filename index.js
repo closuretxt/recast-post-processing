@@ -42,6 +42,7 @@ let isProcessing = false;
 let currentMessageId = null;
 // Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
 let hideNextAiMessage = false;
+let skipGenTypecheck = false;
 // Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
 let streamInterceptObserver = null;
 let isResettingStream = false;
@@ -1145,7 +1146,7 @@ jQuery(async () => {
         }
 
         // Pipeline
-        async function triggerPipelineOnMessage(mesId, skipGenTypecheck = false) {
+        async function triggerPipelineOnMessage(mesId) {
             if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
             if (!skipGenTypecheck && !['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
             if (mesId === 0) { logDebug("triggerPipelineOnMessage: mesId is 0, returning"); return; } // uhh funny silly tavern
@@ -1154,6 +1155,7 @@ jQuery(async () => {
             const msg = chat[mesId];
             if (!msg || msg.is_user) { logDebug("triggerPipelineOnMessage: msg is null or is_user, returning"); return; }
 
+            skipGenTypecheck = false
             // Capture whether streaming was being intercepted (determines the display path)
             const isIntercepted = streamInterceptObserver !== null;
             // Save the original (unprocessed) text before the pipeline modifies it
@@ -1237,12 +1239,15 @@ jQuery(async () => {
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
+                logDebug(`Recast: Stepped Thinking released mutex.`);
+                skipGenTypecheck = true
+
                 // Stepped Thinking might take a few milliseconds to put the actual message in
                 setTimeout(() => {
-                    const st2 = getST();
-                    const mesId = st2.chat.length;
-                    logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
-                    triggerPipelineOnMessage(mesId, true);
+                    //const st2 = getST();
+                    //const mesId = st2.chat.length;
+                    //logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
+                    //triggerPipelineOnMessage(mesId, true);
                 }, 200);
             }
         });
