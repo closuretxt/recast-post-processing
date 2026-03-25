@@ -1243,12 +1243,12 @@ jQuery(async () => {
                 skipGenTypecheck = true
 
                 // Stepped Thinking might take a few milliseconds to put the actual message in
-                setTimeout(() => {
+                //setTimeout(() => {
                     //const st2 = getST();
                     //const mesId = st2.chat.length;
                     //logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
                     //triggerPipelineOnMessage(mesId, true);
-                }, 200);
+                //}, 200);
             }
         });
 
