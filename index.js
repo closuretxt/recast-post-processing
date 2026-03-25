@@ -1145,7 +1145,7 @@ jQuery(async () => {
         }
 
         // Pipeline
-        async function triggerPipelineOnMessage(mesId, skipGenTypecheck) {
+        async function triggerPipelineOnMessage(mesId, skipGenTypecheck = false) {
             if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
             if (!skipGenTypecheck && !['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
             if (mesId === 0) { logDebug("triggerPipelineOnMessage: mesId is 0, returning"); return; } // uhh funny silly tavern
@@ -1242,7 +1242,7 @@ jQuery(async () => {
                     const st2 = getST();
                     const mesId = st2.chat.length;
                     logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
-                    triggerPipelineOnMessage(mesId);
+                    triggerPipelineOnMessage(mesId, true);
                 }, 200);
             }
         });
