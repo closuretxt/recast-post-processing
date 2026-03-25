@@ -1,6 +1,6 @@
 // IMPORTS
 import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled } from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled, showSwipeButtons} from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
@@ -11,6 +11,8 @@ import { defaultPresets } from "./defaultPresets.js";
 // Self Util
 import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
 import { swapProfile } from "./util/profileSwapper.js";
+// Compatibility Extensions
+import { initCompatibilityListeners, shouldSkipStreamIntercept, shouldIgnoreMessageReceived } from "./util/compatibility.js";
 
 // Setup
 const extensionName = "Recast";
@@ -27,6 +29,7 @@ const defaultSettings = {
     debug_mode: false,
     disable_editable_diff: true, // Disables the edit field in the diff viewer
     legacy_api: false, // Swaps profiles and waits for them before doing the request, useful for fixing some issues with root ST code
+    compatibility_mode: false, // Enables compatibility fixes for other extensions
     min_chars: 10, // Skips if there's not enough characters. Useful for preventing rejections or shortcomings from triggering pipeline
     
     presets: defaultPresets,
@@ -39,6 +42,7 @@ let isProcessing = false;
 let currentMessageId = null;
 // Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
 let hideNextAiMessage = false;
+let skipGenTypecheck = false;
 // Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
 let streamInterceptObserver = null;
 let isResettingStream = false;
@@ -56,9 +60,9 @@ function getST() {
 }
 
 // Debug function ofc
-function logDebug(...args) {
+export function logDebug(...args) {
     if (extension_settings[extensionName].debug_mode) {
-        console.log("[Recast]", ...args);
+        console.log("[Recast Debug]", ...args);
     }
 }
 
@@ -195,9 +199,13 @@ function showErrorToast(passName, error) {
 
 // CORE Silly
 // setButtonState AKA block all generations. If there's any other better way to do this please tell me... It has to yield other extensions like qvink and vectorization.
-function setButtonState(state) {
+function setButtonState(state) { // False unlocks, true locks it
     if (typeof setSendButtonState === 'function') {
         setSendButtonState(state);
+    }
+
+    if (!state) {
+        showSwipeButtons() // Oh my god wolf is godsend
     }
 }
 
@@ -232,6 +240,12 @@ function safeUpdateMessageText(mesId, msg) {
         }
     }
     
+     //try {
+    //    redisplayChat(); // Setup Here
+    //} catch (e) {
+    //    console.warn("Recast: Non-fatal error in redisplayChat", e);
+    //}
+
     try {
         updateMessageBlock(mesId, msg);
     } catch (e) {
@@ -265,6 +279,7 @@ async function loadSettings() {
     $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
     $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
     $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
+    $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
 
     populatePresetDropdown();
@@ -281,6 +296,7 @@ function saveSettings() {
     extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
     extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
     extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
+    extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
     
     saveActivePreset();
@@ -746,7 +762,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         if (isPipelineCancelled) {
             logDebug("Pipeline cancelled during pass execution.");
             currentText = originalText;
-            // Restore original text directly to the DOM if we were streaming inline
+            // Restore original text directly
             const msg = getST().chat[currentMessageId];
             if (msg) {
                 msg.mes = originalText;
@@ -952,8 +968,13 @@ jQuery(async () => {
     registerMacros();
     initDiffViewer();
 
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
+
+    // Compatibility warn (Not needed)
+    //$("#recast_compatibility").on("change", function() {
+    //    toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
+    //});
     
     // Preset Buttons
     $("#recast_preset_select").on("change", function() {
@@ -1060,7 +1081,6 @@ jQuery(async () => {
     const st = getST();
     if (st.eventSource && st.event_types) { // bro is checking for nothing lmaoo // this is some real vibecode stuff
         // Helper: attach a MutationObserver on a .mes_text element that blanks any content
-        // update while the pipeline is pending, creating a "char is typing..." visual.
         function attachStreamIntercept(mesTextEl, preserveText = false) {
             if (streamInterceptObserver) streamInterceptObserver.disconnect();
             const originalHTML = preserveText ? mesTextEl.innerHTML : '';
@@ -1093,6 +1113,7 @@ jQuery(async () => {
         if (chatDomEl) {
             const chatObserver = new MutationObserver((mutations) => {
                 if (!hideNextAiMessage) return;
+                if (!extension_settings[extensionName].hide_until_last) return; // If the user doesn't want to hide anything in the first place, then this is useless.
                 for (const mutation of mutations) {
                     for (const node of mutation.addedNodes) {
                         if (
@@ -1102,7 +1123,13 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            if (isProcessing && mesId && parseInt(mesId, 10) === currentMessageId) return;
+                            if (isProcessing) return; // Makes sure to not hide self
+                            
+                            // Compatibility module checks if this should run or not.
+                            if (shouldSkipStreamIntercept(extension_settings[extensionName].compatibility_mode)) {
+                                logDebug('Recast: skipping stream intercept because a compatible extension is running.');
+                                return;
+                            }
                             
                             hideNextAiMessage = false;
                             const mesTextEl = node.querySelector('.mes_text');
@@ -1118,68 +1145,17 @@ jQuery(async () => {
             chatObserver.observe(chatDomEl, { childList: true });
         }
 
-        // When generation starts, set up interception before any token arrives.
-        st.eventSource.on(st.event_types.GENERATION_STARTED, (type, _opts, dryRun) => {
-            lastGenerationType = type;
-            if (dryRun) return;
-            if (!extension_settings[extensionName].enabled) return;
-            if (!extension_settings[extensionName].autorun) return;
-            if (!extension_settings[extensionName].hide_until_last) return;
-            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
-
-            // Only bother if there are passes that will actually run
-            const idx = getActivePresetIndex();
-            if (idx === -1) return;
-            const EnabledPasses = extension_settings[extensionName].presets[idx].passes.filter(p => p.enabled);
-            if (EnabledPasses.length === 0) return;
-
-            if (type === 'swipe' || type === 'regenerate' || type === 'continue') {
-                // Swipe/regenerate update an existing element — blank its text directly now
-                const st2 = getST();
-                const mesId = st2.chat.length - 1;
-                if (mesId >= 0 && st2.chat[mesId] && !st2.chat[mesId].is_user) {
-                    const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
-                    const mesTextEl = mesEl?.querySelector('.mes_text');
-                    if (mesTextEl) {
-                        attachStreamIntercept(mesTextEl, type === 'continue');
-                        logDebug(`Recast: stream intercepted on ${type} mesid=${mesId}.`);
-                    }
-                }
-            } else {
-                // New message: MutationObserver will catch it the instant the DOM node appears
-                hideNextAiMessage = true;
-                logDebug('Recast: set hideNextAiMessage=true for upcoming new AI message.');
-            }
-        });
-
-        // If generation is stopped/aborted, clean up the intercept and restore the raw content.
-        st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
-            hideNextAiMessage = false;
-            isPipelineCancelled = true;
-            if (streamInterceptObserver) {
-                streamInterceptObserver.disconnect();
-                streamInterceptObserver = null;
-            }
-            if (extension_settings[extensionName].hide_until_last && extension_settings[extensionName].autorun) {
-                const st2 = getST();
-                const mesId = st2.chat.length - 1;
-                if (mesId >= 0 && st2.chat[mesId]) {
-                    safeUpdateMessageText(mesId, st2.chat[mesId]);
-                    logDebug(`Recast: generation stopped — restored content of mesid=${mesId}.`);
-                }
-            }
-        });
-
-    // MESSAGE_RECEIVED EVENT
-    st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
-            if (!extension_settings[extensionName].autorun) return;
-            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;
-            if (mesId === 0) return; // uhh funny silly tavern
+        // Pipeline
+        async function triggerPipelineOnMessage(mesId) {
+            if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
+            if (!skipGenTypecheck && !['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
+            if (mesId === 0) { logDebug("triggerPipelineOnMessage: mesId is 0, returning"); return; } // uhh funny silly tavern
 
             const chat = getST().chat;
             const msg = chat[mesId];
-            if (!msg || msg.is_user) return;
+            if (!msg || msg.is_user) { logDebug("triggerPipelineOnMessage: msg is null or is_user, returning"); return; }
 
+            skipGenTypecheck = false
             // Capture whether streaming was being intercepted (determines the display path)
             const isIntercepted = streamInterceptObserver !== null;
             // Save the original (unprocessed) text before the pipeline modifies it
@@ -1194,7 +1170,7 @@ jQuery(async () => {
                 logDebug('Recast: stream intercept released at MESSAGE_RECEIVED.');
             }
             
-            if (recentProcessedMessages.has(mesId)) return;
+            if (recentProcessedMessages.has(mesId)) { logDebug(`triggerPipelineOnMessage: mesId ${mesId} recently processed, returning`); return; }
             recentProcessedMessages.add(mesId);
 
             const result = await runPipeline(msg.mes, mesId, isIntercepted);
@@ -1208,6 +1184,7 @@ jQuery(async () => {
                     setButtonState(false);
                 }
                 // Do NOT set isProcessing to false if we didn't start the pipeline or didn't own the lock
+                logDebug("triggerPipelineOnMessage: pipeline skipped, returning");
                 return;
             }
 
@@ -1256,6 +1233,85 @@ jQuery(async () => {
             } else {
                 // If it wasn't intercepted but we are running in MESSAGE_RECEIVED skipHide logic
                 isProcessing = false;
+            }
+        }
+
+        // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
+        initCompatibilityListeners(() => {
+            if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
+                logDebug(`Recast: Stepped Thinking released mutex.`);
+                skipGenTypecheck = true
+
+                // Stepped Thinking might take a few milliseconds to put the actual message in
+                //setTimeout(() => {
+                    //const st2 = getST();
+                    //const mesId = st2.chat.length;
+                    //logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
+                    //triggerPipelineOnMessage(mesId, true);
+                //}, 200);
+            }
+        });
+
+        // When generation starts, set up interception before any token arrives.
+        st.eventSource.on(st.event_types.GENERATION_STARTED, (type, _opts, dryRun) => {
+            lastGenerationType = type;
+            if (dryRun) return;
+            if (!extension_settings[extensionName].enabled) return;
+            if (!extension_settings[extensionName].autorun) return;
+            if (!extension_settings[extensionName].hide_until_last) return;
+            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
+
+            // Only bother if there are passes that will actually run
+            const idx = getActivePresetIndex();
+            if (idx === -1) return;
+            const EnabledPasses = extension_settings[extensionName].presets[idx].passes.filter(p => p.enabled);
+            if (EnabledPasses.length === 0) return;
+
+            if (type === 'swipe' || type === 'regenerate' || type === 'continue') {
+                // Swipe/regenerate update an existing element — blank its text directly now
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                if (mesId >= 0 && st2.chat[mesId] && !st2.chat[mesId].is_user) {
+                    const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
+                    const mesTextEl = mesEl?.querySelector('.mes_text');
+                    if (mesTextEl) {
+                        attachStreamIntercept(mesTextEl, type === 'continue');
+                        logDebug(`Recast: [GENERATION_STARTED] stream intercepted on ${type} mesid=${mesId}.`);
+                    }
+                }
+            } else {
+                // New message: MutationObserver will catch it the instant the DOM node appears
+                hideNextAiMessage = true;
+                logDebug('Recast: set hideNextAiMessage=true for upcoming new AI message.');
+            }
+        });
+
+        // MESSAGE_RECEIVED EVENT
+        st.eventSource.on(st.event_types.MESSAGE_RECEIVED, async (mesId) => {
+            // Compatibility module checks if this should run or not.
+            if (shouldIgnoreMessageReceived(extension_settings[extensionName].compatibility_mode)) {
+                logDebug('Recast: ignoring MESSAGE_RECEIVED because a compatible extension is running.');
+                return;
+            }
+
+            await triggerPipelineOnMessage(mesId);
+        });
+
+        // If generation is stopped/aborted, clean up the intercept and restore the raw content.
+        st.eventSource.on(st.event_types.GENERATION_STOPPED, () => {
+            hideNextAiMessage = false;
+            isPipelineCancelled = true;
+            if (streamInterceptObserver) {
+                streamInterceptObserver.disconnect();
+                streamInterceptObserver = null;
+            }
+            if (extension_settings[extensionName].hide_until_last && extension_settings[extensionName].autorun) {
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                if (mesId >= 0 && st2.chat[mesId]) {
+                    safeUpdateMessageText(mesId, st2.chat[mesId]);
+                    logDebug(`Recast: generation stopped — restored content of mesid=${mesId}.`);
+                }
             }
         });
     }

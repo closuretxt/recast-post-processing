@@ -83,6 +83,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
 
 ### Troubleshooting
 - If you have any API issues, turn on 'Legacy Connection Profile' in Advanced Settings and make sure the API is valid.
+- If you are using CoT Extensions like Stepped Thinking, enable 'Compatibility Mode' in Advanced Settings.
 
 ## Examples
 
