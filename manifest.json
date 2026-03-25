@@ -1,11 +1,11 @@
 {
     "display_name": "Recast",
-    "loading_order": 9,
+    "loading_order": 3,
     "requires": [],
     "optional": [],
     "js": "index.js",
     "css": "style.css",
     "author": "closuretxt",
-    "version": "1.38-6",
+    "version": "1.38-10",
     "homePage": "https://github.com/closuretxt/recast-post-processing"
 }

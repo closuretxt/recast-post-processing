@@ -645,6 +645,8 @@ async function runPass(pass, text, onChunk = null) {
 
 // MAIN PIPELINE thread
 async function runPipeline(originalText, messageId, skipHide = false, prefixText = "") {
+    skipNextIntercept = false
+    
     if (isProcessing) return { skipped: true, reason: 'busy' };
     if (!extension_settings[extensionName].enabled) return { skipped: true, reason: 'disabled' };
 
@@ -657,7 +659,6 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     isProcessing = true;
     currentMessageId = messageId;
     isPipelineCancelled = false;
-    skipNextIntercept = false
     
     const idx = getActivePresetIndex();
     if (idx === -1) {
@@ -1271,12 +1272,9 @@ jQuery(async () => {
                 logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
                 skipNextIntercept = true; // So messages don't get cleared
 
-                // Stepped Thinking might take a few milliseconds to update the DOM and save the character thoughts properly.
-                setTimeout(() => {
-                    const st2 = getST();
-                    const mesId = st2.chat.length - 1;
-                    triggerPipelineOnMessage(mesId);
-                }, 200);
+                const st2 = getST();
+                const mesId = st2.chat.length - 1;
+                triggerPipelineOnMessage(mesId);
             }
         });
 
