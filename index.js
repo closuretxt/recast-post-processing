@@ -656,6 +656,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     isProcessing = true;
     currentMessageId = messageId;
     isPipelineCancelled = false;
+    skipNextIntercept = false
     
     const idx = getActivePresetIndex();
     if (idx === -1) {
@@ -758,7 +759,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         if (isPipelineCancelled) {
             logDebug("Pipeline cancelled during pass execution.");
             currentText = originalText;
-            // Restore original text directly to the DOM if we were streaming inline
+            // Restore original text directly
             const msg = getST().chat[currentMessageId];
             if (msg) {
                 msg.mes = originalText;
@@ -1119,7 +1120,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            if (isProcessing) return;
+                            if (isProcessing || skipNextIntercept) return;
                             
                             // Compatibility module checks if this should run or not.
                             if (shouldSkipStreamIntercept(extension_settings[extensionName].compatibility_mode)) {
@@ -1267,14 +1268,12 @@ jQuery(async () => {
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
                 logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
-                isProcessing = true; // So messages don't get cleared
+                skipNextIntercept = true; // So messages don't get cleared
 
                 // Stepped Thinking might take a few milliseconds to update the DOM and save the character thoughts properly.
                 setTimeout(() => {
                     const st2 = getST();
                     const mesId = st2.chat.length - 1;
-
-                    isProcessing = false;
                     triggerPipelineOnMessage(mesId);
                 }, 200);
             }
