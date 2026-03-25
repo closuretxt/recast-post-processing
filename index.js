@@ -1237,11 +1237,13 @@ jQuery(async () => {
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
-                const st2 = getST();
-                const mesId = st2.chat.length;
-                
-                logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
-                triggerPipelineOnMessage(mesId, true);
+                // Stepped Thinking might take a few milliseconds to put the actual message in
+                setTimeout(() => {
+                    const st2 = getST();
+                    const mesId = st2.chat.length;
+                    logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
+                    triggerPipelineOnMessage(mesId);
+                }, 200);
             }
         });
 
