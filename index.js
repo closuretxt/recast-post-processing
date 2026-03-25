@@ -1267,10 +1267,16 @@ jQuery(async () => {
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
                 logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
-                
-                const st2 = getST();
-                const mesId = st2.chat.length - 1;
-                triggerPipelineOnMessage(mesId);
+                isProcessing = true; // So messages don't get cleared
+
+                // Stepped Thinking might take a few milliseconds to update the DOM and save the character thoughts properly.
+                setTimeout(() => {
+                    const st2 = getST();
+                    const mesId = st2.chat.length - 1;
+
+                    isProcessing = false;
+                    triggerPipelineOnMessage(mesId);
+                }, 200);
             }
         });
 
