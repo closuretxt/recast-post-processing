@@ -1179,13 +1179,13 @@ jQuery(async () => {
         });
 
         async function triggerPipelineOnMessage(mesId) {
-            if (!extension_settings[extensionName].autorun) return;
-            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) return;
-            if (mesId === 0) return; // uhh funny silly tavern
+            if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
+            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
+            if (mesId === 0) { logDebug("triggerPipelineOnMessage: mesId is 0, returning"); return; } // uhh funny silly tavern
 
             const chat = getST().chat;
             const msg = chat[mesId];
-            if (!msg || msg.is_user) return;
+            if (!msg || msg.is_user) { logDebug("triggerPipelineOnMessage: msg is null or is_user, returning"); return; }
 
             // Capture whether streaming was being intercepted (determines the display path)
             const isIntercepted = streamInterceptObserver !== null;
@@ -1201,7 +1201,7 @@ jQuery(async () => {
                 logDebug('Recast: stream intercept released at MESSAGE_RECEIVED.');
             }
             
-            if (recentProcessedMessages.has(mesId)) return;
+            if (recentProcessedMessages.has(mesId)) { logDebug(`triggerPipelineOnMessage: mesId ${mesId} recently processed, returning`); return; }
             recentProcessedMessages.add(mesId);
 
             const result = await runPipeline(msg.mes, mesId, isIntercepted);
@@ -1215,6 +1215,7 @@ jQuery(async () => {
                     setButtonState(false);
                 }
                 // Do NOT set isProcessing to false if we didn't start the pipeline or didn't own the lock
+                logDebug("triggerPipelineOnMessage: pipeline skipped, returning");
                 return;
             }
 
@@ -1269,9 +1270,10 @@ jQuery(async () => {
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
-                logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
                 const st2 = getST();
-                const mesId = st2.chat.length - 1;
+                const mesId = st2.chat.length;
+                
+                logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
                 triggerPipelineOnMessage(mesId);
             }
         });
