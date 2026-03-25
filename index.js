@@ -42,7 +42,6 @@ let isProcessing = false;
 let currentMessageId = null;
 // Set by GENERATION_STARTED so the MutationObserver can hide the incoming AI message block before streaming
 let hideNextAiMessage = false;
-let skipNextIntercept = false;
 // Intercept observer that blanks streaming tokens into .mes_text while the pipeline is pending
 let streamInterceptObserver = null;
 let isResettingStream = false;
@@ -645,8 +644,6 @@ async function runPass(pass, text, onChunk = null) {
 
 // MAIN PIPELINE thread
 async function runPipeline(originalText, messageId, skipHide = false, prefixText = "") {
-    skipNextIntercept = false
-    
     if (isProcessing) return { skipped: true, reason: 'busy' };
     if (!extension_settings[extensionName].enabled) return { skipped: true, reason: 'disabled' };
 
@@ -1122,7 +1119,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            if (isProcessing || skipNextIntercept) return;
+                            if (isProcessing) return;
                             
                             // Compatibility module checks if this should run or not.
                             if (shouldSkipStreamIntercept(extension_settings[extensionName].compatibility_mode)) {
@@ -1270,8 +1267,7 @@ jQuery(async () => {
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
                 logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
-                skipNextIntercept = true; // So messages don't get cleared
-
+                
                 const st2 = getST();
                 const mesId = st2.chat.length - 1;
                 triggerPipelineOnMessage(mesId);
