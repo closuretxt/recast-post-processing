@@ -210,18 +210,14 @@ function setButtonState(state) { // False unlocks, true locks it
 
 // Makes sure to update the message in chat. Had a lot of trouble in the past with this so there may be a bit too much stuff
 function safeUpdateMessageText(mesId, msg) {
-    try {
-        updateMessageBlock(mesId, msg);
-    } catch (e) {
-        console.warn("Recast: Non-fatal error in updateMessageBlock", e);
-    }
-
-    // Force Update CSS // I am kinda scared that silly may not properly update the message.
     const mesEl = $(`#chat .mes[mesid="${mesId}"]`);
     if (mesEl.length > 0) {
         const mesTextEl = mesEl.find('.mes_text');
         if (mesTextEl.length > 0) {
-            mesTextEl.html(
+            mesTextEl.empty();
+            mesEl.find('.mes_edit_buttons').css('display', 'none');
+            mesEl.find('.mes_buttons').css('display', '');
+            mesTextEl.append(
                 messageFormatting(
                     msg.mes,
                     msg.name,
@@ -236,17 +232,24 @@ function safeUpdateMessageText(mesId, msg) {
         
         const mesBiasEl = mesEl.find('.mes_bias');
         if (mesBiasEl.length > 0) {
+            mesBiasEl.empty();
             if (msg.extra?.bias) {
-                mesBiasEl.html(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
+                mesBiasEl.append(messageFormatting(msg.extra.bias, '', false, false, -1, {}, false));
             }
         }
     }
-
-    //try {
+    
+     //try {
     //    redisplayChat(); // Setup Here
     //} catch (e) {
     //    console.warn("Recast: Non-fatal error in redisplayChat", e);
     //}
+
+    try {
+        updateMessageBlock(mesId, msg);
+    } catch (e) {
+        console.warn("Recast: Non-fatal error in updateMessageBlock", e);
+    }
 
     // This may fire extensions twice? Hopefully no one complains
     const st = getST();
@@ -1119,7 +1122,7 @@ jQuery(async () => {
                         ) {
                             const mesId = node.getAttribute('mesid');
                             if (mesId && recentProcessedMessages.has(parseInt(mesId, 10))) return;
-                            if (isProcessing) return;
+                            if (isProcessing) return; // Makes sure to not hide self
                             
                             // Compatibility module checks if this should run or not.
                             if (shouldSkipStreamIntercept(extension_settings[extensionName].compatibility_mode)) {
@@ -1267,7 +1270,6 @@ jQuery(async () => {
         initCompatibilityListeners(() => {
             if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
                 logDebug('Recast: Stepped Thinking released mutex. Triggering Pipeline');
-                
                 const st2 = getST();
                 const mesId = st2.chat.length - 1;
                 triggerPipelineOnMessage(mesId);
