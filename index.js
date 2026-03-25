@@ -1269,7 +1269,7 @@ jQuery(async () => {
                         const mesTextEl = mesEl?.querySelector('.mes_text');
                         if (mesTextEl) {
                             attachStreamIntercept(mesTextEl, type === 'continue');
-                            logDebug(`Recast: stream intercepted on ${type} mesid=${mesId}.`);
+                            logDebug(`Recast: [GENERATION_STARTED] stream intercepted on ${type} mesid=${mesId}.`);
                         }
                     }
                 }
