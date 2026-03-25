@@ -1237,7 +1237,7 @@ jQuery(async () => {
         }
 
         // Init compatibility listeners if mode is on, providing a callback to re-arm the hide flag
-        if (compatibilityModeEnabled) { // Makes sure Compatibility won't be touched unless the user enables it
+        if (extension_settings[extensionName].compatibility_mode) { // Makes sure Compatibility won't be touched unless the user enables it
             initCompatibilityListeners(() => {
                 if (extension_settings[extensionName].enabled && extension_settings[extensionName].autorun && extension_settings[extensionName].compatibility_mode) {
                     logDebug(`Recast: Stepped Thinking released mutex.`);
