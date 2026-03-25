@@ -1144,40 +1144,7 @@ jQuery(async () => {
             chatObserver.observe(chatDomEl, { childList: true });
         }
 
-        // When generation starts, set up interception before any token arrives.
-        st.eventSource.on(st.event_types.GENERATION_STARTED, (type, _opts, dryRun) => {
-            lastGenerationType = type;
-            if (dryRun) return;
-            if (!extension_settings[extensionName].enabled) return;
-            if (!extension_settings[extensionName].autorun) return;
-            if (!extension_settings[extensionName].hide_until_last) return;
-            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
-
-            // Only bother if there are passes that will actually run
-            const idx = getActivePresetIndex();
-            if (idx === -1) return;
-            const EnabledPasses = extension_settings[extensionName].presets[idx].passes.filter(p => p.enabled);
-            if (EnabledPasses.length === 0) return;
-
-            if (type === 'swipe' || type === 'regenerate' || type === 'continue') {
-                // Swipe/regenerate update an existing element — blank its text directly now
-                const st2 = getST();
-                const mesId = st2.chat.length - 1;
-                if (mesId >= 0 && st2.chat[mesId] && !st2.chat[mesId].is_user) {
-                    const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
-                    const mesTextEl = mesEl?.querySelector('.mes_text');
-                    if (mesTextEl) {
-                        attachStreamIntercept(mesTextEl, type === 'continue');
-                        logDebug(`Recast: stream intercepted on ${type} mesid=${mesId}.`);
-                    }
-                }
-            } else {
-                // New message: MutationObserver will catch it the instant the DOM node appears
-                hideNextAiMessage = true;
-                logDebug('Recast: set hideNextAiMessage=true for upcoming new AI message.');
-            }
-        });
-
+        // Pipeline
         async function triggerPipelineOnMessage(mesId) {
             if (!extension_settings[extensionName].autorun) { logDebug("triggerPipelineOnMessage: autorun disabled, returning"); return; }
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(lastGenerationType)) { logDebug(`triggerPipelineOnMessage: lastGenerationType ${lastGenerationType} not supported, returning`); return; }
@@ -1275,6 +1242,45 @@ jQuery(async () => {
                 
                 logDebug(`Recast: Stepped Thinking released mutex. Triggering Pipeline on mesid=${mesId}.`);
                 triggerPipelineOnMessage(mesId);
+            }
+        });
+
+        // When generation starts, set up interception before any token arrives.
+        st.eventSource.on(st.event_types.GENERATION_STARTED, (type, _opts, dryRun) => {
+            lastGenerationType = type;
+            if (dryRun) return;
+            if (!extension_settings[extensionName].enabled) return;
+            if (!extension_settings[extensionName].autorun) return;
+            if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
+
+            // Only bother if there are passes that will actually run
+            const idx = getActivePresetIndex();
+            if (idx === -1) return;
+            const EnabledPasses = extension_settings[extensionName].presets[idx].passes.filter(p => p.enabled);
+            if (EnabledPasses.length === 0) return;
+
+            if (type === 'swipe' || type === 'regenerate' || type === 'continue') {
+                // Swipe/regenerate update an existing element — blank its text directly now
+                if (extension_settings[extensionName].hide_until_last) {
+                    const st2 = getST();
+                    const mesId = st2.chat.length - 1;
+                    if (mesId >= 0 && st2.chat[mesId] && !st2.chat[mesId].is_user) {
+                        const mesEl = document.querySelector(`#chat .mes[mesid="${mesId}"]`);
+                        const mesTextEl = mesEl?.querySelector('.mes_text');
+                        if (mesTextEl) {
+                            attachStreamIntercept(mesTextEl, type === 'continue');
+                            logDebug(`Recast: stream intercepted on ${type} mesid=${mesId}.`);
+                        }
+                    }
+                }
+
+                if (extension_settings[extensionName].compatibility_mode) {
+                    triggerPipelineOnMessage(mesId);
+                }
+            } else {
+                // New message: MutationObserver will catch it the instant the DOM node appears
+                hideNextAiMessage = true;
+                logDebug('Recast: set hideNextAiMessage=true for upcoming new AI message.');
             }
         });
 
