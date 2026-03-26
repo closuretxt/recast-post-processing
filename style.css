@@ -285,6 +285,121 @@ ins.rc-ins {
     padding: 0 1px;
 }
 
+/* ===== Diff Step Navigation ===== */
+
+.rc-diff-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 20px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+    background: rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.rc-diff-step-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.rc-diff-dots {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rc-diff-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1.5px solid rgba(255, 255, 255, 0.32);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.15s, border-color 0.15s;
+}
+
+.rc-diff-dot:hover {
+    background: rgba(255, 255, 255, 0.38);
+    transform: scale(1.25);
+}
+
+.rc-diff-dot-active {
+    background: rgba(74, 144, 226, 0.75);
+    border-color: rgba(74, 144, 226, 0.95);
+    transform: scale(1.3);
+}
+
+.rc-diff-dot-active:hover {
+    background: rgba(74, 144, 226, 0.9);
+}
+
+.rc-diff-step-label {
+    font-size: 0.72em;
+    opacity: 0.55;
+    text-align: center;
+    letter-spacing: 0.05em;
+    color: var(--SmartThemeBodyColor, #ddd);
+    white-space: nowrap;
+}
+
+.rc-diff-nav-arrow {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: var(--SmartThemeBodyColor, #aaa);
+    cursor: pointer;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+}
+
+.rc-diff-nav-arrow:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.rc-diff-nav-arrow:disabled {
+    opacity: 0.28;
+    cursor: default;
+}
+
+/* ===== Mobile Responsive Diff ===== */
+
+@media (max-width: 600px) {
+    #recast_diff_modal {
+        width: 97vw;
+        height: 93vh;
+    }
+
+    .rc-diff-body {
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .rc-diff-divider {
+        width: 100%;
+        height: 1px;
+        flex-shrink: 0;
+    }
+
+    .rc-diff-panel {
+        min-height: 200px;
+        flex: 0 0 auto;
+    }
+
+    .rc-diff-transformed-content {
+        flex: 0 0 auto;
+        min-height: 150px;
+    }
+}
+
 @keyframes rc-fade-in {
     from { opacity: 0; }
     to   { opacity: 1; }
