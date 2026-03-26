@@ -112,9 +112,12 @@ You can help by submitting bug reports or opening pull requests!
 
 AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for more information.
 
-## TO-DO
-- ~~Step Diff Viewer (View how the text changed per step)~~
-- ~~Mobile Support~~
+## UPDATES
+- ~~Legacy API and Compatibility Mode with other extensions~~ (1.3+)
+- ~~Step Diff Viewer (View how the text changed per pass)~~ (1.4+)
+- ~~Mobile Support~~ (1.4+)
+
+### TO-DO
 - Expand Prompts View (AKA Advanced Setup Screen)
 - Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
 - Text Completion Support
