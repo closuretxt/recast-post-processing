@@ -113,9 +113,9 @@ You can help by submitting bug reports or opening pull requests!
 AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for more information.
 
 ## TO-DO
-- Mobile Diff is placed vertically
+- ~~Step Diff Viewer (View how the text changed per step)~~
+- ~~Mobile Support~~
 - Expand Prompts View (AKA Advanced Setup Screen)
-- Step Diff Viewer (View how the text changed per step)
 - Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
 - Text Completion Support
 - Advanced Prompt Control, prefills and role management Options, trigger cooldowns
