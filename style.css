@@ -51,11 +51,18 @@
 
 #recast_diff_backdrop {
     position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    z-index: 9999;
+    z-index: 19999;
+    pointer-events: auto;
     animation: rc-fade-in 0.2s ease;
 }
 
@@ -71,7 +78,7 @@
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 12px;
     box-shadow: 0 24px 72px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255,255,255,0.04);
-    z-index: 10000;
+    z-index: 20000;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -283,6 +290,133 @@ ins.rc-ins {
     text-decoration: none;
     border-radius: 2px;
     padding: 0 1px;
+}
+
+/* ===== Diff Step Navigation ===== */
+
+.rc-diff-steps {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px 8px 20px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+    background: rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.rc-diff-step-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.rc-diff-dots {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rc-diff-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.rc-diff-dot:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
+}
+
+.rc-diff-dot-active {
+    background: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
+}
+
+.rc-diff-dot-active:hover {
+    background: #ffffff;
+}
+
+.rc-diff-step-label {
+    font-size: 0.8em;
+    opacity: 0.7;
+    text-align: center;
+    letter-spacing: 0.05em;
+    color: var(--SmartThemeBodyColor, #ddd);
+    font-weight: 500;
+}
+
+.rc-diff-nav-arrow {
+    background: none;
+    border: none;
+    color: var(--SmartThemeBodyColor, #aaa);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 1.1em;
+    line-height: 1;
+    transition: color 0.2s ease, transform 0.1s;
+}
+
+.rc-diff-nav-arrow:hover:not(:disabled) {
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.rc-diff-nav-arrow:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.rc-diff-nav-arrow:disabled {
+    opacity: 0.2;
+    cursor: default;
+}
+
+/* ===== Portrait (mobile) Responsive Diff =====
+   Trigger when height > width — avoids top:50%+translate centering breaking on mobile.
+   We pin the modal by explicit corner offsets and null the transform. */
+
+@media (orientation: portrait) {
+    #recast_diff_backdrop {
+        width: 100dvw;
+        height: 100dvh;
+    }
+
+    #recast_diff_modal {
+        top: 2.5vh;
+        left: 2.5vw;
+        transform: none !important;
+        width: 95vw;
+        height: 95vh;
+        max-width: none;
+        animation: rc-fade-in 0.22s ease;
+    }
+
+    .rc-diff-body {
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Each panel takes an equal share of the available body height */
+    .rc-diff-panel {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .rc-diff-divider {
+        width: 100%;
+        height: 1px;
+        flex-shrink: 0;
+    }
 }
 
 @keyframes rc-fade-in {

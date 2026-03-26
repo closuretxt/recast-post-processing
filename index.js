@@ -52,6 +52,7 @@ let lastGenerationType = null;
 // Pass utility and macro
 const PassResults = {};
 let LatestResult = "";
+let _passSnapshots = [];
 
 // Base functions
 // Utility to get ST variables
@@ -636,7 +637,7 @@ async function runPass(pass, text, onChunk = null) {
             }
         }
 
-        //result = parse_reasoning(result, ConnectionProfile);
+        result = parse_reasoning(result, ConnectionProfile);
         logDebug("Pass result:", result);
         return result || text;
     } catch (e) {
@@ -671,7 +672,8 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     
     const preset = extension_settings[extensionName].presets[idx];
     let currentText = originalText;
-    
+    _passSnapshots = [prefixText + originalText];
+
     const enabledPasses = preset.passes.filter(p => p.enabled);
     
     if (enabledPasses.length > 0) {
@@ -782,6 +784,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
 
         PassResults[pass.id] = currentText;
         completedPassesCount++;
+        _passSnapshots.push(prefixText + currentText);
 
         // Ensure final state of the pass is updated
         if (shouldStreamInline) {
@@ -878,7 +881,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
             }
             setButtonState(false);
             isProcessing = false;
-        });
+        }, _passSnapshots);
     }
     
     return finalFullText;
@@ -1233,7 +1236,7 @@ jQuery(async () => {
                             }
                             setButtonState(false);
                             isProcessing = false;
-                        });
+                        }, _passSnapshots);
                     }
                 }, 500); // 500ms delay protects the final visual update
             } else {

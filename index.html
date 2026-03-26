@@ -127,18 +127,27 @@
     </div>
     <div class="rc-diff-body">
         <div class="rc-diff-panel">
-            <div class="rc-diff-panel-header rc-diff-original-header"><i class="fa-solid fa-file-lines"></i> Original</div>
+            <div class="rc-diff-panel-header rc-diff-original-header"><i class="fa-solid fa-file-lines"></i> <span class="rc-diff-panel-label">Original</span></div>
             <div id="recast_diff_original_view" class="rc-diff-content"></div>
         </div>
         <div class="rc-diff-divider"></div>
         <div class="rc-diff-panel">
             <div class="rc-diff-panel-header rc-diff-transformed-header">
-                <i class="fa-solid fa-wand-sparkles"></i> Transformed
+                <i class="fa-solid fa-wand-sparkles"></i> <span class="rc-diff-panel-label">Transformed</span>
                 <span class="rc-diff-edit-hint">(editable)</span>
             </div>
             <div id="recast_diff_transformed_view" class="rc-diff-content rc-diff-transformed-content"></div>
             <textarea id="recast_diff_transformed" class="rc-diff-textarea text_pole"></textarea>
         </div>
+    </div>
+    <!-- Step Navigation -->
+    <div id="recast_diff_steps" class="rc-diff-steps" style="display:none;">
+        <div class="rc-diff-step-nav">
+            <button id="recast_diff_prev" class="rc-diff-nav-arrow" title="Previous comparison"><i class="fa-solid fa-chevron-left"></i></button>
+            <div id="recast_diff_dots" class="rc-diff-dots"></div>
+            <button id="recast_diff_next" class="rc-diff-nav-arrow" title="Next comparison"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <div id="recast_diff_step_label" class="rc-diff-step-label">Full Diff</div>
     </div>
     <div class="rc-diff-footer">
         <button id="recast_diff_reject" class="menu_button red_button rc-diff-btn"><i class="fa-solid fa-xmark"></i> Reject</button>
