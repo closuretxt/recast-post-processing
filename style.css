@@ -289,10 +289,11 @@ ins.rc-ins {
 
 .rc-diff-steps {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    padding: 8px 20px;
+    gap: 8px;
+    padding: 12px 20px 8px 20px;
     border-top: 1px solid var(--SmartThemeBorderColor, #444);
     background: rgba(0, 0, 0, 0.15);
     flex-shrink: 0;
@@ -300,72 +301,75 @@ ins.rc-ins {
 
 .rc-diff-step-nav {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
+    gap: 16px;
 }
 
 .rc-diff-dots {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
 }
 
 .rc-diff-dot {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1.5px solid rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
     cursor: pointer;
     padding: 0;
     flex-shrink: 0;
-    transition: background 0.15s, transform 0.15s, border-color 0.15s;
+    transition: all 0.2s ease;
 }
 
 .rc-diff-dot:hover {
-    background: rgba(255, 255, 255, 0.38);
-    transform: scale(1.25);
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
 }
 
 .rc-diff-dot-active {
-    background: rgba(74, 144, 226, 0.75);
-    border-color: rgba(74, 144, 226, 0.95);
-    transform: scale(1.3);
+    background: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
 }
 
 .rc-diff-dot-active:hover {
-    background: rgba(74, 144, 226, 0.9);
+    background: #ffffff;
 }
 
 .rc-diff-step-label {
-    font-size: 0.72em;
-    opacity: 0.55;
+    font-size: 0.8em;
+    opacity: 0.7;
     text-align: center;
     letter-spacing: 0.05em;
     color: var(--SmartThemeBodyColor, #ddd);
-    white-space: nowrap;
+    font-weight: 500;
 }
 
 .rc-diff-nav-arrow {
     background: none;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: none;
     color: var(--SmartThemeBodyColor, #aaa);
     cursor: pointer;
-    padding: 5px 9px;
-    border-radius: 6px;
-    font-size: 0.85em;
+    padding: 4px;
+    font-size: 1.1em;
     line-height: 1;
-    transition: background 0.15s, color 0.15s;
+    transition: color 0.2s ease, transform 0.1s;
 }
 
 .rc-diff-nav-arrow:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
     color: #fff;
+    transform: scale(1.1);
+}
+
+.rc-diff-nav-arrow:active:not(:disabled) {
+    transform: scale(0.95);
 }
 
 .rc-diff-nav-arrow:disabled {
-    opacity: 0.28;
+    opacity: 0.2;
     cursor: default;
 }
 
