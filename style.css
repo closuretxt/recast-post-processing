@@ -379,6 +379,9 @@ ins.rc-ins {
     #recast_diff_modal {
         width: 97vw;
         height: 93vh;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
 
     .rc-diff-body {
