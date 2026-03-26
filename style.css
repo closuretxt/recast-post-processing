@@ -380,7 +380,10 @@ ins.rc-ins {
         width: 95vw;
         height: 95vh;
         max-height: calc(100vh - 40px);
-        margin: auto;
+        margin: 0;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
 
     .rc-diff-body {
