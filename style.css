@@ -51,11 +51,18 @@
 
 #recast_diff_backdrop {
     position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    z-index: 9999;
+    z-index: 19999;
+    pointer-events: auto;
     animation: rc-fade-in 0.2s ease;
 }
 
@@ -71,7 +78,7 @@
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 12px;
     box-shadow: 0 24px 72px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255,255,255,0.04);
-    z-index: 10000;
+    z-index: 20000;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -378,6 +385,11 @@ ins.rc-ins {
    We pin the modal by explicit corner offsets and null the transform. */
 
 @media (orientation: portrait) {
+    #recast_diff_backdrop {
+        width: 100dvw;
+        height: 100dvh;
+    }
+
     #recast_diff_modal {
         top: 2.5vh;
         left: 2.5vw;
