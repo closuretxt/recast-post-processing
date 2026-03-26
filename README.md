@@ -118,6 +118,8 @@ AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for mor
 - Expand Prompts View (AKA Advanced Setup Screen)
 - Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
 - Text Completion Support
+- Exporting and Importing Recast Presets
+- Character Locking Presets
 - Advanced Prompt Control, prefills and role management Options, trigger cooldowns
 - Conditional Pass Triggers based on ST-script
 - Adaptative Pass to decide the order and which Passes will be used for the upcoming generation
