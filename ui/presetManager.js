@@ -1,3 +1,8 @@
+/*
+Rework of the preset system, pass all functions related to presets to presetManager, the saving disc function now shall automatically save to the currently selected preset.
+The load button will not be the button to open a preset management page, offering option to add default presets back, new presets, rename, delete and reaarange them, the UI should be good looking, simple and blend well together, as compact as possible.
+*/
+
 import { extension_settings, getContext } from "../../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../../script.js";
 import { defaultPresets } from "../settings/defaultPresets.js";
@@ -185,7 +190,7 @@ export const presetManager = {
     openManagerModal: function() {
         this.renderManagerList();
         $("#recast_diff_backdrop").show(); // Reusing the backdrop
-        $("#recast_preset_manager_modal").show();
+        $("#recast_preset_manager_modal").css("display", "flex");
     },
 
     renderManagerList: function() {

@@ -913,10 +913,12 @@ jQuery(async () => {
 
     $("body").append(diffBackdrop);
     $("body").append(diffModal);
+    $("body").append(tempDiv.find("#recast_preset_manager_modal"));
     
     // Append the rest to extensions settings
     $("#extensions_settings").append(tempDiv.children());
 
+    presetManager.init(addPassToUI, saveSettings);
     loadSettings();
     registerMacros();
     initDiffViewer();
