@@ -57,6 +57,11 @@ export class PipelineBar {
         // Progress up to influence minus 5%
         const maxChunkInfluence = Math.max(0, this.passPercentInfluence - 5);
         const currentWords = this._wordCount(currentText);
+        
+        if (currentWords >= this.previousPassWords) {
+            this.previousPassWords = currentWords + 10;
+        }
+
         const ratio = Math.min(currentWords / this.previousPassWords, 1.0);
         
         const currentPercent = this.basePercent + (ratio * maxChunkInfluence);
