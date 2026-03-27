@@ -711,48 +711,51 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         let lastRegexResult = "";
         const REGEX_THROTTLE_MS = 1000
 
-        const onChunk = shouldStreamInline ? (chunkText) => {
+        const onChunk = (chunkText) => {
             pipelineBar.updateChunk(chunkText.length);
-            const now = performance.now();
-            let textToRender = chunkText;
+            
+            if (shouldStreamInline) {
+                const now = performance.now();
+                let textToRender = chunkText;
 
-            // Only run heavy ST Regex passes periodically
-            if (now - lastRegexTime > REGEX_THROTTLE_MS) {
-                lastRegexResult = applySTRegex(chunkText) || chunkText;
-                lastRegexTime = now;
-            }
-            // Use last computed regex result to substitute for streaming tokens if available
-            textToRender = lastRegexResult || chunkText;
+                // Only run heavy ST Regex passes periodically
+                if (now - lastRegexTime > REGEX_THROTTLE_MS) {
+                    lastRegexResult = applySTRegex(chunkText) || chunkText;
+                    lastRegexTime = now;
+                }
+                // Use last computed regex result to substitute for streaming tokens if available
+                textToRender = lastRegexResult || chunkText;
 
-            const msg = getST().chat[currentMessageId];
-            if (msg) {
-                msg.mes = prefixText + textToRender;
+                const msg = getST().chat[currentMessageId];
+                if (msg) {
+                    msg.mes = prefixText + textToRender;
 
-                const mesEl = document.querySelector(`#chat .mes[mesid="${currentMessageId}"]`);
-                const mesTextEl = mesEl?.querySelector('.mes_text');
-                
-                if (mesTextEl) {
-                    const formattedText = messageFormatting(
-                        textToRender,
-                        msg.name,
-                        msg.is_system,
-                        msg.is_user,
-                        currentMessageId,
-                        {},
-                        false
-                    );
+                    const mesEl = document.querySelector(`#chat .mes[mesid="${currentMessageId}"]`);
+                    const mesTextEl = mesEl?.querySelector('.mes_text');
+                    
+                    if (mesTextEl) {
+                        const formattedText = messageFormatting(
+                            textToRender,
+                            msg.name,
+                            msg.is_system,
+                            msg.is_user,
+                            currentMessageId,
+                            {},
+                            false
+                        );
 
-                    if (power_user && power_user.stream_fade_in) {
-                        applyStreamFadeIn(mesTextEl, formattedText);
-                    } else {
-                        mesTextEl.innerHTML = formattedText;
+                        if (power_user && power_user.stream_fade_in) {
+                            applyStreamFadeIn(mesTextEl, formattedText);
+                        } else {
+                            mesTextEl.innerHTML = formattedText;
+                        }
+                        scrollChatToBottom({ waitForFrame: true });
+                    } else if (mesEl) {
+                        updateMessageBlock(currentMessageId, msg);
                     }
-                    scrollChatToBottom({ waitForFrame: true });
-                } else if (mesEl) {
-                    updateMessageBlock(currentMessageId, msg);
                 }
             }
-        } : null;
+        };
 
         // Pipeline Startup
         const RawPassResult = await runPass(pass, currentText, onChunk);
