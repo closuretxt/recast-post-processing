@@ -709,6 +709,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
 
         let lastRegexTime = 0;
         let lastRegexResult = "";
+        let lastRegexChunkLength = 0;
         const REGEX_THROTTLE_MS = 1000
 
         const onChunk = (chunkText) => {
@@ -720,11 +721,15 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
 
                 // Only run heavy ST Regex passes periodically
                 if (now - lastRegexTime > REGEX_THROTTLE_MS) {
-                    lastRegexResult = applySTRegex(chunkText) || chunkText;
+                    lastRegexResult = applySTRegex(chunkText);
+                    lastRegexChunkLength = chunkText.length;
                     lastRegexTime = now;
                 }
-                // Use last computed regex result to substitute for streaming tokens if available
-                textToRender = lastRegexResult || chunkText;
+                
+                // Append any new un-regexed tokens that arrived during the cooldown
+                if (lastRegexResult) {
+                    textToRender = lastRegexResult + chunkText.slice(lastRegexChunkLength);
+                }
 
                 const msg = getST().chat[currentMessageId];
                 if (msg) {
