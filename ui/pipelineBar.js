@@ -49,7 +49,7 @@ export class PipelineBar {
         if (!this.isActive || this.totalPasses === 0) return;
         
         // Progress up to influence minus 5%
-        const maxChunkInfluence = this.passPercentInfluence * 0.95;
+        const maxChunkInfluence = Math.max(0, this.passPercentInfluence - 5);
         const ratio = Math.min(currentTextLength / this.previousPassLength, 1.0);
         
         const currentPercent = this.basePercent + (ratio * maxChunkInfluence);
