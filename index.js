@@ -6,7 +6,7 @@ import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
 import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
-import { defaultPresets } from "./defaultPresets.js";
+import { defaultPresets } from "./settings/defaultPresets.js";
 
 // Self Util
 import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
