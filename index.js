@@ -13,6 +13,8 @@ import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
 import { swapProfile } from "./util/profileSwapper.js";
 // Compatibility Extensions
 import { initCompatibilityListeners, shouldSkipStreamIntercept, shouldIgnoreMessageReceived } from "./util/compatibility.js";
+// UI
+import { pipelineBar } from "./ui/pipelineBar.js";
 
 // Setup
 const extensionName = "Recast";
@@ -677,11 +679,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     const enabledPasses = preset.passes.filter(p => p.enabled);
     
     if (enabledPasses.length > 0) {
-        $("#recast_progress_bar").fadeIn(200);
-        $("#recast_progress_text").text(`Starting pipeline...`);
-        $("#recast_progress_fill").css("width", `0%`);
-
-        $("#form_sheld").addClass("recast-input-active");
+        pipelineBar.start(enabledPasses.length, currentText.length);
 
         if (!skipHide && extension_settings[extensionName].hide_until_last && currentMessageId !== null) {
             const mesEl = document.querySelector(`.mes[mesid="${currentMessageId}"]`);
@@ -701,10 +699,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         }
         
         const pass = enabledPasses[i];
-        const progressPercent = Math.round(((i) / enabledPasses.length) * 100);
-        
-        $("#recast_progress_text").text(`Pass ${i + 1}/${enabledPasses.length}: ${pass.name}`);
-        $("#recast_progress_fill").css("width", `${progressPercent}%`);
+        pipelineBar.updatePass(i, pass.name);
         
         const isLastPass = i === enabledPasses.length - 1;
         const hideUntilLast = extension_settings[extensionName].hide_until_last;
@@ -717,6 +712,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         const REGEX_THROTTLE_MS = 1000
 
         const onChunk = shouldStreamInline ? (chunkText) => {
+            pipelineBar.updateChunk(chunkText.length);
             const now = performance.now();
             let textToRender = chunkText;
 
@@ -785,6 +781,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         PassResults[pass.id] = currentText;
         completedPassesCount++;
         _passSnapshots.push(prefixText + currentText);
+        pipelineBar.finishPass(currentText.length);
 
         // Ensure final state of the pass is updated
         if (shouldStreamInline) {
@@ -816,12 +813,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     LatestResult = finalFullText;
 
     if (enabledPasses.length > 0) {
-        $("#recast_progress_fill").css("width", `100%`);
-        $("#recast_progress_text").text(`Pipeline complete!`);
-        setTimeout(() => {
-            $("#recast_progress_bar").fadeOut(300);
-            $("#form_sheld").removeClass("recast-input-active");
-        }, 1500);
+        pipelineBar.complete();
     }
 
     // Backup
@@ -950,17 +942,15 @@ jQuery(async () => {
     const diffBackdrop = tempDiv.find("#recast_diff_backdrop");
     const diffModal = tempDiv.find("#recast_diff_modal");
     
-    // Stop pipeline button
-    progressBar.find("#recast_stop_pipeline").on("click", () => {
+    $("body").append(progressBar);
+    
+    pipelineBar.init(() => {
         isPipelineCancelled = true;
         isProcessing = false;
         setButtonState(false);
-        $("#recast_progress_bar").fadeOut(300);
-        $("#form_sheld").removeClass("recast-input-active");
         logDebug("Pipeline cancelled by user via stop button.");
     });
 
-    $("body").append(progressBar);
     $("body").append(diffBackdrop);
     $("body").append(diffModal);
     
