@@ -1,3 +1,4 @@
+// If streaming is on, makes the pipeline bar compare word count between the last pass and the one right now, kinda trying to make it show progress. Doesn't work with hyperfast models.
 export class PipelineBar {
     constructor() {
         this.progressBar = null;
