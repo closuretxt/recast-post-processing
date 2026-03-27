@@ -99,17 +99,16 @@ export const presetManager = {
 
     initModalEvents: function() {
         // Prevent clicks inside the modal and backdrop from bubbling to ST's
-        // document-level handler that closes the extensions drawer
-        $("#recast_preset_manager_modal").on("click", (e) => {
+        // document-level handler that closes the extensions drawer.
+        // Must use native capture-phase listeners so we intercept before ST does.
+        const stopClick = (e) => {
             e.stopPropagation();
-        });
-        $("#recast_diff_backdrop").on("click", (e) => {
-            if ($("#recast_preset_manager_modal").is(":visible")) {
-                $(e.currentTarget).fadeOut(200);
-            } else {
-                e.stopPropagation();
-            }
-        });
+            e.stopImmediatePropagation();
+        };
+        document.getElementById("recast_preset_manager_modal")
+            ?.addEventListener("click", stopClick, true);
+        document.getElementById("recast_diff_backdrop")
+            ?.addEventListener("click", stopClick, true);
 
         // Modal buttons
         $("#recast_preset_manager_close").on("click", () => {
