@@ -25,10 +25,14 @@ export class PipelineBar {
         });
     }
 
-    start(totalPasses, initialTextLength) {
+    _wordCount(text) {
+        return text ? text.trim().split(/\s+/).length : 0;
+    }
+
+    start(totalPasses, initialText) {
         this.totalPasses = totalPasses;
-        this.originalTextLength = initialTextLength > 0 ? initialTextLength : 1;
-        this.previousPassLength = this.originalTextLength;
+        const wc = this._wordCount(initialText);
+        this.previousPassWords = wc > 0 ? wc : 1;
         this.isActive = true;
         
         this.progressBar.fadeIn(200);
@@ -42,28 +46,28 @@ export class PipelineBar {
         this.basePercent = (index / this.totalPasses) * 100;
         this.passPercentInfluence = (1 / this.totalPasses) * 100;
         
-        // If it's the very first pass, explicitly use original text length
-        if (index === 0) {
-            this.previousPassLength = this.originalTextLength;
-        }
-
         this.progressText.text(`Pass ${index + 1}/${this.totalPasses}: ${passName}`);
         this.progressFill.css("width", `${this.basePercent}%`);
     }
 
-    updateChunk(currentTextLength) {
+    updateChunk(currentText) {
         if (!this.isActive || this.totalPasses === 0) return;
         
-        // Progress up to influence minus 2%
-        const maxChunkInfluence = Math.max(0, this.passPercentInfluence - 2);
-        const ratio = Math.min(currentTextLength / this.previousPassLength, 1.0);
+        // Progress up to influence minus 5%
+        const maxChunkInfluence = Math.max(0, this.passPercentInfluence - 5);
+        const currentWords = this._wordCount(currentText);
+        const ratio = Math.min(currentWords / this.previousPassWords, 1.0);
         
         const currentPercent = this.basePercent + (ratio * maxChunkInfluence);
         this.progressFill.css("width", `${currentPercent}%`);
     }
 
-    finishPass(finalTextLength) {
-        this.previousPassLength = finalTextLength > 0 ? finalTextLength : 1;
+    finishPass(finalText) {
+        // Snap to the end of this pass's full slot before moving to the next
+        const endPercent = this.basePercent + this.passPercentInfluence;
+        this.progressFill.css("width", `${endPercent}%`);
+        const wc = this._wordCount(finalText);
+        this.previousPassWords = wc > 0 ? wc : 1;
     }
 
     complete() {

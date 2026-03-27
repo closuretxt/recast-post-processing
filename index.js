@@ -679,7 +679,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     const enabledPasses = preset.passes.filter(p => p.enabled);
     
     if (enabledPasses.length > 0) {
-        pipelineBar.start(enabledPasses.length, currentText.length);
+        pipelineBar.start(enabledPasses.length, currentText);
 
         if (!skipHide && extension_settings[extensionName].hide_until_last && currentMessageId !== null) {
             const mesEl = document.querySelector(`.mes[mesid="${currentMessageId}"]`);
@@ -713,7 +713,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         const REGEX_THROTTLE_MS = 1000
 
         const onChunk = (chunkText) => {
-            pipelineBar.updateChunk(chunkText.length);
+            pipelineBar.updateChunk(chunkText);
             
             if (shouldStreamInline) {
                 const now = performance.now();
@@ -789,7 +789,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         PassResults[pass.id] = currentText;
         completedPassesCount++;
         _passSnapshots.push(prefixText + currentText);
-        pipelineBar.finishPass(currentText.length);
+        pipelineBar.finishPass(currentText);
 
         // Ensure final state of the pass is updated
         if (shouldStreamInline) {
