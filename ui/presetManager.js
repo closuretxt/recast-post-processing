@@ -104,7 +104,11 @@ export const presetManager = {
             e.stopPropagation();
         });
         $("#recast_diff_backdrop").on("click", (e) => {
-            e.stopPropagation();
+            if ($("#recast_preset_manager_modal").is(":visible")) {
+                $(e.currentTarget).fadeOut(200);
+            } else {
+                e.stopPropagation();
+            }
         });
 
         // Modal buttons
