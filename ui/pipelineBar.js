@@ -1,9 +1,9 @@
 export class PipelineBar {
     constructor() {
-        this.progressBar = $("#recast_progress_bar");
-        this.progressText = $("#recast_progress_text");
-        this.progressFill = $("#recast_progress_fill");
-        this.formShield = $("#form_sheld");
+        this.progressBar = null;
+        this.progressText = null;
+        this.progressFill = null;
+        this.formShield = null;
         
         this.totalPasses = 0;
         this.currentPassIndex = 0;
@@ -14,6 +14,11 @@ export class PipelineBar {
     }
 
     init(stopCallback) {
+        this.progressBar = $("#recast_progress_bar");
+        this.progressText = $("#recast_progress_text");
+        this.progressFill = $("#recast_progress_fill");
+        this.formShield = $("#form_sheld");
+
         this.progressBar.find("#recast_stop_pipeline").on("click", () => {
             this.hide();
             if (stopCallback) stopCallback();
