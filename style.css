@@ -464,6 +464,11 @@ ins.rc-ins {
     gap: 12px;
 }
 
+/* Give icon+text buttons in the modal proper spacing */
+.rc-pm-body .menu_button {
+    gap: 6px;
+}
+
 .rc-pm-list {
     display: flex;
     flex-direction: column;
