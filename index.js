@@ -11,6 +11,7 @@ import { defaultPresets } from "./defaultPresets.js";
 // Self Util
 import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
 import { swapProfile } from "./util/profileSwapper.js";
+import { presetManager } from "./ui/presetManager.js";
 // Compatibility Extensions
 import { initCompatibilityListeners, shouldSkipStreamIntercept, shouldIgnoreMessageReceived } from "./util/compatibility.js";
 // UI
@@ -285,8 +286,8 @@ async function loadSettings() {
     $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
 
-    populatePresetDropdown();
-    loadActivePreset();
+    presetManager.populatePresetDropdown();
+    presetManager.loadActivePreset();
 }
 
 function saveSettings() {
@@ -302,7 +303,7 @@ function saveSettings() {
     extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
     
-    saveActivePreset();
+    presetManager.saveActivePreset();
     saveSettingsDebounced();
 }
 
@@ -326,55 +327,6 @@ function populateConnectionDropdown(selectElement, currentValue) {
     } else {
         selectElement.val("");
     }
-}
-
-function getActivePresetIndex() {
-    return extension_settings[extensionName].presets.findIndex(p => p.name === extension_settings[extensionName].active_preset);
-}
-
-function saveActivePreset() {
-    const idx = getActivePresetIndex();
-    if (idx === -1) return;
-    
-    const passes = [];
-    $("#recast_pass_list .recast-pass-item").each(function() {
-        passes.push({
-            id: $(this).data("id"),
-            name: $(this).find(".pass-name").val(),
-            enabled: $(this).find(".pass-enabled").prop("checked"),
-            contextLength: parseInt($(this).find(".pass-context-length").val(), 10),
-            prompt: $(this).find(".pass-prompt").val(),
-            connection: $(this).find(".pass-connection").val(),
-            injectWorldInfo: $(this).find(".pass-inject-world-info").prop("checked"),
-            injectWIOutlets: $(this).find(".pass-inject-wi-outlets").prop("checked"),
-            includeCharCard: $(this).find(".pass-include-char-card").prop("checked"),
-            includeSceneContext: $(this).find(".pass-include-scene-context").prop("checked")
-        });
-    });
-    
-    extension_settings[extensionName].presets[idx].passes = passes;
-}
-
-function populatePresetDropdown() {
-    const select = $("#recast_preset_select");
-    select.empty();
-    extension_settings[extensionName].presets.forEach(p => {
-        select.append($("<option></option>").val(p.name).text(p.name));
-    });
-    select.val(extension_settings[extensionName].active_preset);
-}
-
-function loadActivePreset() {
-    const idx = getActivePresetIndex();
-    if (idx === -1) return;
-    
-    const preset = extension_settings[extensionName].presets[idx];
-    const list = $("#recast_pass_list");
-    list.empty();
-    
-    preset.passes.forEach(pass => {
-        addPassToUI(pass);
-    });
 }
 
 // PASS Setup
@@ -664,7 +616,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     currentMessageId = messageId;
     isPipelineCancelled = false;
     
-    const idx = getActivePresetIndex();
+    const idx = presetManager.getActivePresetIndex();
     if (idx === -1) {
         isProcessing = false;
         return { skipped: true, reason: 'no_preset' };
@@ -929,7 +881,7 @@ function registerMacros() {
 
     MacrosParser.addMacro("recast_latest", () => LatestResult);
 
-    const idx = getActivePresetIndex();
+    const idx = presetManager.getActivePresetIndex();
     if (idx === -1) return;
 
     const Passes = extension_settings[extensionName].presets[idx].passes;
@@ -977,35 +929,6 @@ jQuery(async () => {
         toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
     });
     
-    // Preset Buttons
-    $("#recast_preset_select").on("change", function() {
-        extension_settings[extensionName].active_preset = $(this).val();
-        loadActivePreset();
-        saveSettingsDebounced();
-    });
-
-    $("#recast_save_preset").on("click", async () => {
-        const st = getST();
-        const name = await st.Popup.show.input("Enter a name for the preset:", "", extension_settings[extensionName].active_preset);
-        if (!name) return;
-
-        let presetIdx = extension_settings[extensionName].presets.findIndex(p => p.name === name);
-        if (presetIdx === -1) {
-            extension_settings[extensionName].presets.push({ name: name, passes: [] });
-            presetIdx = extension_settings[extensionName].presets.length - 1;
-        }
-
-        extension_settings[extensionName].active_preset = name;
-        saveActivePreset();
-        populatePresetDropdown();
-        toastr.success(`Preset "${name}" saved.`);
-    });
-
-    $("#recast_load_preset").on("click", () => {
-        // Redundant since select handles it, but good for manual refresh
-        loadActivePreset();
-    });
-
     // Pass Buttons
     $("#recast_add_pass").on("click", () => {
         addPassToUI();
@@ -1253,7 +1176,7 @@ jQuery(async () => {
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
 
             // Only bother if there are passes that will actually run
-            const idx = getActivePresetIndex();
+            const idx = presetManager.getActivePresetIndex();
             if (idx === -1) return;
             const EnabledPasses = extension_settings[extensionName].presets[idx].passes.filter(p => p.enabled);
             if (EnabledPasses.length === 0) return;
