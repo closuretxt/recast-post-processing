@@ -431,6 +431,16 @@ ins.rc-ins {
 
 /* ===== Preset Manager Modal ===== */
 
+.rc-pm-closing {
+    animation: rc-slide-down 0.2s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+    pointer-events: none;
+}
+
+@keyframes rc-slide-down {
+    from { opacity: 1; transform: translate(-50%, -50%); }
+    to   { opacity: 0; transform: translate(-50%, calc(-50% + 16px)); }
+}
+
 #recast_preset_manager_modal {
     display: none;
     position: fixed;
