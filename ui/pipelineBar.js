@@ -27,7 +27,8 @@ export class PipelineBar {
 
     start(totalPasses, initialTextLength) {
         this.totalPasses = totalPasses;
-        this.previousPassLength = initialTextLength > 0 ? initialTextLength : 1;
+        this.originalTextLength = initialTextLength > 0 ? initialTextLength : 1;
+        this.previousPassLength = this.originalTextLength;
         this.isActive = true;
         
         this.progressBar.fadeIn(200);
@@ -41,6 +42,11 @@ export class PipelineBar {
         this.basePercent = (index / this.totalPasses) * 100;
         this.passPercentInfluence = (1 / this.totalPasses) * 100;
         
+        // If it's the very first pass, explicitly use original text length
+        if (index === 0) {
+            this.previousPassLength = this.originalTextLength;
+        }
+
         this.progressText.text(`Pass ${index + 1}/${this.totalPasses}: ${passName}`);
         this.progressFill.css("width", `${this.basePercent}%`);
     }
