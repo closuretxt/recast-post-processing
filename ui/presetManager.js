@@ -1,6 +1,6 @@
-import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../script.js";
-import { defaultPresets } from "../defaultPresets.js";
+import { extension_settings, getContext } from "../../../../extensions.js";
+import { saveSettingsDebounced } from "../../../../../script.js";
+import { defaultPresets } from "../settings/defaultPresets.js";
 
 export const extensionName = "Recast";
 
