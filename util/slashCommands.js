@@ -2,13 +2,13 @@ import { getContext, extension_settings } from "../../../../extensions.js";
 import { extensionName, runPipeline, saveSettings } from "../index.js";
 import { presetManager } from "../ui/presetManager.js";
 
-/* Necessary commands:
+/* Commands:
 /rc-run mesId (If no mes Id runs on last message)
 /rc-runbulk From_mesId-To_mesId WaitTime (Bulk runs from X to Y message, optional wait time between requests default 1 second)
 /rc-toggle toggleTo (Toggles to true or false accordingly the extension enabled, if none just toggles it)
 /rc-diffToggle toggleTo (Toggles to true or false accordingly the diff viewer setting, if none just toggles it)
 
-/rc-customrun mesId=mesId passes={1, 2, 3} (allows you to run a custom pass with specific pass settings. Make this as undisruptive as possible to index.js)
+/rc-customrun mesId=mesId passes={1, 2, 3} (allows you to run a custom pass with specific pass settings.)
 */
 
 export function initSlashCommands() {
