@@ -6,13 +6,16 @@ import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
 import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
-import { defaultPresets } from "./defaultPresets.js";
+import { defaultPresets } from "./settings/defaultPresets.js";
 
 // Self Util
 import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
 import { swapProfile } from "./util/profileSwapper.js";
+import { presetManager } from "./ui/presetManager.js";
 // Compatibility Extensions
 import { initCompatibilityListeners, shouldSkipStreamIntercept, shouldIgnoreMessageReceived } from "./util/compatibility.js";
+// UI
+import { pipelineBar } from "./ui/pipelineBar.js";
 
 // Setup
 const extensionName = "Recast";
@@ -52,6 +55,8 @@ let lastGenerationType = null;
 // Pass utility and macro
 const PassResults = {};
 let LatestResult = "";
+let _passSnapshots = [];
+let _passNames = [];
 
 // Base functions
 // Utility to get ST variables
@@ -282,8 +287,8 @@ async function loadSettings() {
     $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
 
-    populatePresetDropdown();
-    loadActivePreset();
+    presetManager.populatePresetDropdown();
+    presetManager.loadActivePreset();
 }
 
 function saveSettings() {
@@ -299,7 +304,7 @@ function saveSettings() {
     extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
     
-    saveActivePreset();
+    presetManager.saveActivePreset();
     saveSettingsDebounced();
 }
 
@@ -323,55 +328,6 @@ function populateConnectionDropdown(selectElement, currentValue) {
     } else {
         selectElement.val("");
     }
-}
-
-function getActivePresetIndex() {
-    return extension_settings[extensionName].presets.findIndex(p => p.name === extension_settings[extensionName].active_preset);
-}
-
-function saveActivePreset() {
-    const idx = getActivePresetIndex();
-    if (idx === -1) return;
-    
-    const passes = [];
-    $("#recast_pass_list .recast-pass-item").each(function() {
-        passes.push({
-            id: $(this).data("id"),
-            name: $(this).find(".pass-name").val(),
-            enabled: $(this).find(".pass-enabled").prop("checked"),
-            contextLength: parseInt($(this).find(".pass-context-length").val(), 10),
-            prompt: $(this).find(".pass-prompt").val(),
-            connection: $(this).find(".pass-connection").val(),
-            injectWorldInfo: $(this).find(".pass-inject-world-info").prop("checked"),
-            injectWIOutlets: $(this).find(".pass-inject-wi-outlets").prop("checked"),
-            includeCharCard: $(this).find(".pass-include-char-card").prop("checked"),
-            includeSceneContext: $(this).find(".pass-include-scene-context").prop("checked")
-        });
-    });
-    
-    extension_settings[extensionName].presets[idx].passes = passes;
-}
-
-function populatePresetDropdown() {
-    const select = $("#recast_preset_select");
-    select.empty();
-    extension_settings[extensionName].presets.forEach(p => {
-        select.append($("<option></option>").val(p.name).text(p.name));
-    });
-    select.val(extension_settings[extensionName].active_preset);
-}
-
-function loadActivePreset() {
-    const idx = getActivePresetIndex();
-    if (idx === -1) return;
-    
-    const preset = extension_settings[extensionName].presets[idx];
-    const list = $("#recast_pass_list");
-    list.empty();
-    
-    preset.passes.forEach(pass => {
-        addPassToUI(pass);
-    });
 }
 
 // PASS Setup
@@ -661,7 +617,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     currentMessageId = messageId;
     isPipelineCancelled = false;
     
-    const idx = getActivePresetIndex();
+    const idx = presetManager.getActivePresetIndex();
     if (idx === -1) {
         isProcessing = false;
         return { skipped: true, reason: 'no_preset' };
@@ -671,15 +627,13 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     
     const preset = extension_settings[extensionName].presets[idx];
     let currentText = originalText;
-    
+    _passSnapshots = [prefixText + originalText];
+
     const enabledPasses = preset.passes.filter(p => p.enabled);
+    _passNames = enabledPasses.map(p => p.name);
     
     if (enabledPasses.length > 0) {
-        $("#recast_progress_bar").fadeIn(200);
-        $("#recast_progress_text").text(`Starting pipeline...`);
-        $("#recast_progress_fill").css("width", `0%`);
-
-        $("#form_sheld").addClass("recast-input-active");
+        pipelineBar.start(enabledPasses.length, currentText);
 
         if (!skipHide && extension_settings[extensionName].hide_until_last && currentMessageId !== null) {
             const mesEl = document.querySelector(`.mes[mesid="${currentMessageId}"]`);
@@ -699,10 +653,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
         }
         
         const pass = enabledPasses[i];
-        const progressPercent = Math.round(((i) / enabledPasses.length) * 100);
-        
-        $("#recast_progress_text").text(`Pass ${i + 1}/${enabledPasses.length}: ${pass.name}`);
-        $("#recast_progress_fill").css("width", `${progressPercent}%`);
+        pipelineBar.updatePass(i, pass.name);
         
         const isLastPass = i === enabledPasses.length - 1;
         const hideUntilLast = extension_settings[extensionName].hide_until_last;
@@ -712,49 +663,58 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
 
         let lastRegexTime = 0;
         let lastRegexResult = "";
+        let lastRegexChunkLength = 0;
         const REGEX_THROTTLE_MS = 1000
 
-        const onChunk = shouldStreamInline ? (chunkText) => {
-            const now = performance.now();
-            let textToRender = chunkText;
+        const onChunk = (chunkText) => {
+            pipelineBar.updateChunk(chunkText);
+            
+            if (shouldStreamInline) {
+                const now = performance.now();
+                let textToRender = chunkText;
 
-            // Only run heavy ST Regex passes periodically
-            if (now - lastRegexTime > REGEX_THROTTLE_MS) {
-                lastRegexResult = applySTRegex(chunkText) || chunkText;
-                lastRegexTime = now;
-            }
-            // Use last computed regex result to substitute for streaming tokens if available
-            textToRender = lastRegexResult || chunkText;
-
-            const msg = getST().chat[currentMessageId];
-            if (msg) {
-                msg.mes = prefixText + textToRender;
-
-                const mesEl = document.querySelector(`#chat .mes[mesid="${currentMessageId}"]`);
-                const mesTextEl = mesEl?.querySelector('.mes_text');
+                // Only run heavy ST Regex passes periodically
+                if (now - lastRegexTime > REGEX_THROTTLE_MS) {
+                    lastRegexResult = applySTRegex(chunkText);
+                    lastRegexChunkLength = chunkText.length;
+                    lastRegexTime = now;
+                }
                 
-                if (mesTextEl) {
-                    const formattedText = messageFormatting(
-                        textToRender,
-                        msg.name,
-                        msg.is_system,
-                        msg.is_user,
-                        currentMessageId,
-                        {},
-                        false
-                    );
+                // Append any new un-regexed tokens that arrived during the cooldown
+                if (lastRegexResult) {
+                    textToRender = lastRegexResult + chunkText.slice(lastRegexChunkLength);
+                }
 
-                    if (power_user && power_user.stream_fade_in) {
-                        applyStreamFadeIn(mesTextEl, formattedText);
-                    } else {
-                        mesTextEl.innerHTML = formattedText;
+                const msg = getST().chat[currentMessageId];
+                if (msg) {
+                    msg.mes = prefixText + textToRender;
+
+                    const mesEl = document.querySelector(`#chat .mes[mesid="${currentMessageId}"]`);
+                    const mesTextEl = mesEl?.querySelector('.mes_text');
+                    
+                    if (mesTextEl) {
+                        const formattedText = messageFormatting(
+                            textToRender,
+                            msg.name,
+                            msg.is_system,
+                            msg.is_user,
+                            currentMessageId,
+                            {},
+                            false
+                        );
+
+                        if (power_user && power_user.stream_fade_in) {
+                            applyStreamFadeIn(mesTextEl, formattedText);
+                        } else {
+                            mesTextEl.innerHTML = formattedText;
+                        }
+                        scrollChatToBottom({ waitForFrame: true });
+                    } else if (mesEl) {
+                        updateMessageBlock(currentMessageId, msg);
                     }
-                    scrollChatToBottom({ waitForFrame: true });
-                } else if (mesEl) {
-                    updateMessageBlock(currentMessageId, msg);
                 }
             }
-        } : null;
+        };
 
         // Pipeline Startup
         const RawPassResult = await runPass(pass, currentText, onChunk);
@@ -782,6 +742,8 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
 
         PassResults[pass.id] = currentText;
         completedPassesCount++;
+        _passSnapshots.push(prefixText + currentText);
+        pipelineBar.finishPass(currentText);
 
         // Ensure final state of the pass is updated
         if (shouldStreamInline) {
@@ -813,12 +775,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
     LatestResult = finalFullText;
 
     if (enabledPasses.length > 0) {
-        $("#recast_progress_fill").css("width", `100%`);
-        $("#recast_progress_text").text(`Pipeline complete!`);
-        setTimeout(() => {
-            $("#recast_progress_bar").fadeOut(300);
-            $("#form_sheld").removeClass("recast-input-active");
-        }, 1500);
+        pipelineBar.complete();
     }
 
     // Backup
@@ -878,7 +835,7 @@ async function runPipeline(originalText, messageId, skipHide = false, prefixText
             }
             setButtonState(false);
             isProcessing = false;
-        });
+        }, _passSnapshots, _passNames);
     }
     
     return finalFullText;
@@ -926,7 +883,7 @@ function registerMacros() {
 
     MacrosParser.addMacro("recast_latest", () => LatestResult);
 
-    const idx = getActivePresetIndex();
+    const idx = presetManager.getActivePresetIndex();
     if (idx === -1) return;
 
     const Passes = extension_settings[extensionName].presets[idx].passes;
@@ -947,23 +904,23 @@ jQuery(async () => {
     const diffBackdrop = tempDiv.find("#recast_diff_backdrop");
     const diffModal = tempDiv.find("#recast_diff_modal");
     
-    // Stop pipeline button
-    progressBar.find("#recast_stop_pipeline").on("click", () => {
+    $("body").append(progressBar);
+    
+    pipelineBar.init(() => {
         isPipelineCancelled = true;
         isProcessing = false;
         setButtonState(false);
-        $("#recast_progress_bar").fadeOut(300);
-        $("#form_sheld").removeClass("recast-input-active");
         logDebug("Pipeline cancelled by user via stop button.");
     });
 
-    $("body").append(progressBar);
     $("body").append(diffBackdrop);
     $("body").append(diffModal);
+    $("body").append(tempDiv.find("#recast_preset_manager_modal"));
     
     // Append the rest to extensions settings
     $("#extensions_settings").append(tempDiv.children());
 
+    presetManager.init(addPassToUI, saveSettings);
     loadSettings();
     registerMacros();
     initDiffViewer();
@@ -976,35 +933,6 @@ jQuery(async () => {
         toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
     });
     
-    // Preset Buttons
-    $("#recast_preset_select").on("change", function() {
-        extension_settings[extensionName].active_preset = $(this).val();
-        loadActivePreset();
-        saveSettingsDebounced();
-    });
-
-    $("#recast_save_preset").on("click", async () => {
-        const st = getST();
-        const name = await st.Popup.show.input("Enter a name for the preset:", "", extension_settings[extensionName].active_preset);
-        if (!name) return;
-
-        let presetIdx = extension_settings[extensionName].presets.findIndex(p => p.name === name);
-        if (presetIdx === -1) {
-            extension_settings[extensionName].presets.push({ name: name, passes: [] });
-            presetIdx = extension_settings[extensionName].presets.length - 1;
-        }
-
-        extension_settings[extensionName].active_preset = name;
-        saveActivePreset();
-        populatePresetDropdown();
-        toastr.success(`Preset "${name}" saved.`);
-    });
-
-    $("#recast_load_preset").on("click", () => {
-        // Redundant since select handles it, but good for manual refresh
-        loadActivePreset();
-    });
-
     // Pass Buttons
     $("#recast_add_pass").on("click", () => {
         addPassToUI();
@@ -1233,7 +1161,7 @@ jQuery(async () => {
                             }
                             setButtonState(false);
                             isProcessing = false;
-                        });
+                        }, _passSnapshots, _passNames);
                     }
                 }, 500); // 500ms delay protects the final visual update
             } else {
@@ -1252,7 +1180,7 @@ jQuery(async () => {
             if (!['normal', 'swipe', 'regenerate', 'impersonate', 'continue'].includes(type)) return;
 
             // Only bother if there are passes that will actually run
-            const idx = getActivePresetIndex();
+            const idx = presetManager.getActivePresetIndex();
             if (idx === -1) return;
             const EnabledPasses = extension_settings[extensionName].presets[idx].passes.filter(p => p.enabled);
             if (EnabledPasses.length === 0) return;

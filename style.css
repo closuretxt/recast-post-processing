@@ -51,11 +51,18 @@
 
 #recast_diff_backdrop {
     position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    z-index: 9999;
+    z-index: 19999;
+    pointer-events: auto;
     animation: rc-fade-in 0.2s ease;
 }
 
@@ -71,7 +78,7 @@
     border: 1px solid var(--SmartThemeBorderColor, #444);
     border-radius: 12px;
     box-shadow: 0 24px 72px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255,255,255,0.04);
-    z-index: 10000;
+    z-index: 20000;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -285,6 +292,140 @@ ins.rc-ins {
     padding: 0 1px;
 }
 
+/* ===== Diff Step Navigation ===== */
+
+.rc-diff-steps {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px 8px 20px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #444);
+    background: rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.rc-diff-step-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.rc-diff-dots {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rc-diff-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.rc-diff-dot:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
+}
+
+.rc-diff-dot-active {
+    background: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    transform: scale(1.2);
+}
+
+.rc-diff-dot-active:hover {
+    background: #ffffff;
+}
+
+.rc-diff-step-label {
+    font-size: 0.8em;
+    opacity: 0.7;
+    text-align: center;
+    letter-spacing: 0.05em;
+    color: var(--SmartThemeBodyColor, #ddd);
+    font-weight: 500;
+}
+
+.rc-diff-step-name {
+    font-size: 0.85em;
+    opacity: 0.55;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.rc-diff-nav-arrow {
+    background: none;
+    border: none;
+    color: var(--SmartThemeBodyColor, #aaa);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 1.1em;
+    line-height: 1;
+    transition: color 0.2s ease, transform 0.1s;
+}
+
+.rc-diff-nav-arrow:hover:not(:disabled) {
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.rc-diff-nav-arrow:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.rc-diff-nav-arrow:disabled {
+    opacity: 0.2;
+    cursor: default;
+}
+
+/* ===== Portrait (mobile) Responsive Diff =====
+   Trigger when height > width — avoids top:50%+translate centering breaking on mobile.
+   We pin the modal by explicit corner offsets and null the transform. */
+
+@media (orientation: portrait) {
+    #recast_diff_backdrop {
+        width: 100dvw;
+        height: 100dvh;
+    }
+
+    #recast_diff_modal {
+        top: 2.5vh;
+        left: 2.5vw;
+        transform: none !important;
+        width: 95vw;
+        height: 95vh;
+        max-width: none;
+        animation: rc-fade-in 0.22s ease;
+    }
+
+    .rc-diff-body {
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Each panel takes an equal share of the available body height */
+    .rc-diff-panel {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .rc-diff-divider {
+        width: 100%;
+        height: 1px;
+        flex-shrink: 0;
+    }
+}
+
 @keyframes rc-fade-in {
     from { opacity: 0; }
     to   { opacity: 1; }
@@ -295,13 +436,122 @@ ins.rc-ins {
     to   { opacity: 1; transform: translate(-50%, -50%); }
 }
 
-.recast-preset-manager {
-    margin-bottom: 15px;
+/* ===== Preset Manager Modal ===== */
+
+.rc-pm-closing {
+    animation: rc-slide-down 0.2s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+    pointer-events: none;
 }
 
-.recast-preset-manager select {
-    width: 100%;
-    margin-bottom: 5px;
+@keyframes rc-slide-down {
+    from { opacity: 1; transform: translate(-50%, -50%); }
+    to   { opacity: 0; transform: translate(-50%, calc(-50% + 16px)); }
+}
+
+#recast_preset_manager_modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 460px;
+    max-width: 92vw;
+    max-height: 78vh;
+    background: var(--SmartThemeBlurTintColor, #1a1a2e);
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 12px;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255,255,255,0.04);
+    z-index: 20000;
+    flex-direction: column;
+    overflow: hidden;
+    animation: rc-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rc-pm-header {
+    padding: 14px 20px;
+    flex-shrink: 0;
+}
+
+.rc-pm-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Give icon+text buttons in the modal proper spacing */
+.rc-pm-body .menu_button {
+    gap: 6px;
+}
+
+.rc-pm-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+/* ===== Preset Manager Modal Items ===== */
+
+.rc-pm-item {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 7px;
+    padding: 10px 12px;
+    gap: 10px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.rc-pm-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.rc-pm-drag {
+    cursor: grab;
+    color: #666;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+
+.rc-pm-item:hover .rc-pm-drag {
+    color: #999;
+}
+
+.rc-pm-name {
+    flex: 1;
+    font-size: 0.95em;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--SmartThemeBodyColor, #eee);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rc-pm-active-tag {
+    font-size: 0.68em;
+    background: rgba(50, 190, 100, 0.18);
+    color: #88e8a0;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid rgba(50, 190, 100, 0.3);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+}
+
+.rc-pm-actions {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
 }
 
 /* ===== Progress Bar ===== */
@@ -354,10 +604,10 @@ ins.rc-ins {
 #form_sheld.recast-input-active::before {
     content: '';
     position: absolute;
-    top: 0;
+    top: -5px;
     left: 0;
     right: 0;
-    height: 6px;
+    height: 5px;
     background: linear-gradient(
         90deg,
         #4a90e2 0%,
@@ -377,7 +627,7 @@ ins.rc-ins {
 #form_sheld.recast-input-active::after {
     content: '';
     position: absolute;
-    top: 0;
+    top: -5px;
     left: 0;
     right: 0;
     height: 60px;

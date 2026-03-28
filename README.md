@@ -112,15 +112,20 @@ You can help by submitting bug reports or opening pull requests!
 
 AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for more information.
 
-## TO-DO
-- Somehow make it stop disappearing with visual swipes (But you can still swipe with keybinds)
-- Advanced Prompt Control, prefills and role management Options
+## UPDATES
+- ~~Legacy API and Compatibility Mode with other extensions~~ (1.3+)
+- ~~Step Diff Viewer (View how the text changed per pass)~~ (1.4+)
+- ~~Mobile Support~~ (1.4+)
+
+### TO-DO
+- Expand Prompts View (AKA Advanced Setup Screen)
+- Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
 - Text Completion Support
+- Exporting and Importing Recast Presets
+- Character Locking Presets
+- Advanced Prompt Control, prefills and role management Options, trigger cooldowns
 - Conditional Pass Triggers based on ST-script
 - Adaptative Pass to decide the order and which Passes will be used for the upcoming generation
-- Step Diff Viewer (View how the text changed per step)
 - Tool Calling
-- Addition Type Pass (For Trackers, HTML injection, Image Gen, etc)
-- Reroll button (Original > Goes again) / Pipeline Again (Passes the last result on the pipeline again) on the review menu
-- Connection profile settings on the top of the pass settings
+- Reroll button (Original > Goes again) / Pipeline Again (Pass result on the pipeline again) on the review menu
 - Localization
