@@ -1,6 +1,7 @@
 # Recast | Slash Commands Documentation
 
 This document outlines the available slash commands provided by `util/slashCommands.js` for the **Recast** SillyTavern extension. These commands allow you to trigger, configure, and automate the post-processing pipeline directly from the chat box or via ST-scripts.
+If your setup requires a specific interaction or change, please feel free to ask about it on the Discord. I will add it for you.
 
 ---
 
