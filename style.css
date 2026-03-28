@@ -387,9 +387,7 @@ ins.rc-ins {
     cursor: default;
 }
 
-/* ===== Portrait (mobile) Responsive Diff =====
-   Trigger when height > width — avoids top:50%+translate centering breaking on mobile.
-   We pin the modal by explicit corner offsets and null the transform. */
+/* ===== Portrait (mobile) Responsive Diff ===== */
 
 @media (orientation: portrait) {
     #recast_diff_backdrop {
@@ -408,12 +406,13 @@ ins.rc-ins {
     }
 
     #recast_preset_manager_modal {
-        top: 5vh;
-        left: 5vw;
+        top: 26.25vh !important;
+        left: 4vw !important;
         transform: none !important;
-        width: 95vw;
-        height: 95vh;
-        max-width: none;
+        width: 92vw !important;
+        height: 47.5vh !important;
+        max-height: none !important;
+        max-width: none !important;
         animation: rc-fade-in 0.22s ease;
     }
 
