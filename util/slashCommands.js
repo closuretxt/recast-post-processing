@@ -9,6 +9,7 @@ import { presetManager } from "../ui/presetManager.js";
 /rc-diffToggle toggleTo (Toggles to true or false accordingly the diff viewer setting, if none just toggles it)
 
 /rc-customrun mesId=mesId passes={1, 2, 3} (allows you to run a custom pass with specific pass settings.)
+/rc-profile profileName (Switches current profile or returns the name of the current profile if nothing is passed)
 */
 
 export function initSlashCommands() {
@@ -265,6 +266,43 @@ export function initSlashCommands() {
                 name: 'passes',
                 description: 'List of pass indices to run, 1-based (e.g., {1, 3})',
                 isRequired: true,
+                typeList: [ARGUMENT_TYPE.STRING],
+            }),
+        ],
+    }));
+
+    SlashCommandParser.addCommandObject(SlashCommand.fromProps({
+        name: 'rc-profile',
+        aliases: ['recast-profile'],
+        helpString: 'Switches current profile or returns the name of the current profile if nothing is passed.',
+        callback: (args, profileName) => {
+            const settings = extension_settings[extensionName];
+            
+            if (profileName === "" || profileName === undefined || profileName === null) {
+                toastr.info(`Current Recast profile: ${settings.active_preset}`);
+                return settings.active_preset;
+            }
+            
+            const profileExists = settings.presets.some(p => p.name === profileName);
+            if (!profileExists) {
+                toastr.warning(`Profile "${profileName}" not found.`);
+                return "";
+            }
+            
+            settings.active_preset = profileName;
+            
+            // Update UI
+            $("#recast_preset_select").val(profileName);
+            presetManager.loadActivePreset();
+            saveSettings();
+            
+            toastr.info(`Recast profile switched to: ${profileName}`);
+            return profileName;
+        },
+        unnamedArgumentList: [
+            SlashCommandArgument.fromProps({
+                description: 'Name of the profile to switch to',
+                isRequired: false,
                 typeList: [ARGUMENT_TYPE.STRING],
             }),
         ],
