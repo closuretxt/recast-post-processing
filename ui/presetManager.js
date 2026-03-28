@@ -139,7 +139,7 @@ export const presetManager = {
 
         $("#recast_pm_restore").on("click", async () => {
             const st = getContext();
-            const confirm = await st.Popup.show.confirm("Restore Default Presets", "This will add the default presets back. Existing presets with the same name will be overwritten. Proceed?");
+            const confirm = await st.Popup.show.confirm("Restore Default Presets", "If a existing preset is named 'Default Preset' it will be overwritten. Proceed?");
             if (!confirm) return;
 
             defaultPresets.forEach(dp => {
