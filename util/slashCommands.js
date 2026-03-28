@@ -1,4 +1,4 @@
-import { getContext, extension_settings } from "../../../extensions.js";
+import { getContext, extension_settings } from "../../../../extensions.js";
 import { extensionName, runPipeline, saveSettings } from "../index.js";
 import { presetManager } from "../ui/presetManager.js";
 
