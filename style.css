@@ -408,15 +408,13 @@ ins.rc-ins {
     }
 
     #recast_preset_manager_modal {
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        margin: auto;
-        transform: none;
-        height: fit-content;
-        max-width: 95vw;
-        max-height: 85dvh;
+        top: 2.5vh;
+        left: 2.5vw;
+        transform: none !important;
+        width: 95vw;
+        height: 95vh;
+        max-width: none;
+        animation: rc-fade-in 0.22s ease;
     }
 
     .rc-diff-body {
