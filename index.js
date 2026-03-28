@@ -7,7 +7,7 @@ import { getWorldInfoPrompt } from "../../../world-info.js";
 import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
 // Settings
-import { loadSettings, saveSettings, defaultSettings } from "./settings/settingsManager.js";
+import { loadSettings, saveSettings, defaultSettings, initSettingsListeners } from "./settings/settingsManager.js";
 export { loadSettings, saveSettings, defaultSettings };
 
 // Self Util
@@ -869,17 +869,10 @@ jQuery(async () => {
 
     presetManager.init(addPassToUI, saveSettings);
     loadSettings();
+    initSettingsListeners();
     registerMacros();
     initDiffViewer();
     initSlashCommands();
-
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility").on("change", saveSettings);
-    $("#recast_min_chars").on("input change", saveSettings);
-
-    // Compatibility warn
-    $("#recast_compatibility").on("change", function() {
-        toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
-    });
     
     // Pass Buttons
     $("#recast_add_pass").on("click", () => {

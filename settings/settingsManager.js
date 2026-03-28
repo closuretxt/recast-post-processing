@@ -8,7 +8,7 @@ export const defaultSettings = {
     enabled: true,
     autorun: true, // Runs on gen
     inject: true, // Should edit messages with new content
-    replace_inline: false, // If it should edit messages as the pipeline runs
+    replace_inline: false, // AKA Disable Diff Viewer
     hide_until_last: true, // Skips all message edit and hides the message until pipeline is about to end
     stream_pipeline: true, // Streaming, has to have default sillystreaming enabled too
     debug_mode: false,
@@ -20,6 +20,18 @@ export const defaultSettings = {
     presets: defaultPresets,
     active_preset: "Default Preset"
 };
+
+export function initSettingsListeners() {
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility").on("change", saveSettings);
+    $("#recast_min_chars").on("input change", saveSettings);
+
+    // Compatibility warn
+    $("#recast_compatibility").on("change", function() {
+        if (typeof toastr !== "undefined") {
+            toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
+        }
+    });
+}
 
 export async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
