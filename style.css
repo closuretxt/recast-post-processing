@@ -408,9 +408,13 @@ ins.rc-ins {
     }
 
     #recast_preset_manager_modal {
-        top: 50dvh;
-        left: 50dvw;
-        transform: translate(-50%, -50%);
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: auto;
+        transform: none;
+        height: fit-content;
         max-width: 95vw;
         max-height: 85dvh;
     }
