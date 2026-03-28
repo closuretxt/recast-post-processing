@@ -397,16 +397,22 @@ ins.rc-ins {
         height: 100dvh;
     }
 
-    #recast_diff_modal,
-    #recast_preset_manager_modal {
+    #recast_diff_modal {
         top: 2.5vh;
         left: 2.5vw;
         transform: none !important;
         width: 95vw;
         height: 95vh;
         max-width: none;
-        max-height: none;
         animation: rc-fade-in 0.22s ease;
+    }
+
+    #recast_preset_manager_modal {
+        top: 50dvh;
+        left: 50dvw;
+        transform: translate(-50%, -50%);
+        max-width: 95vw;
+        max-height: 85dvh;
     }
 
     .rc-diff-body {
