@@ -34,7 +34,7 @@ function myersDiff(oldTokens, newTokens) {
         // Memory safeguard for highly divergent huge texts (keeps memory < 100MB)
         if (editDepth > 10000) return null;
         
-        pathHistory.push(furthestPaths.slice(maxTotalLength - editDepth, maxTotalLength + editDepth + 1));
+        pathHistory.push(new Int32Array(furthestPaths));
 
         for (let diagonal = -editDepth; diagonal <= editDepth; diagonal += 2) {
             let oldPos;
@@ -62,7 +62,7 @@ function myersDiff(oldTokens, newTokens) {
                 for (let step = editDepth; step > 0; step--) {
                     const historyArray = pathHistory[step];
                     const currDiagonal = currOldPos - currNewPos;
-                    const histIndex = step + currDiagonal;
+                    const histIndex = maxTotalLength + currDiagonal;
 
                     const wentDown = (currDiagonal === -step || (currDiagonal !== step && historyArray[histIndex - 1] < historyArray[histIndex + 1]));
 
