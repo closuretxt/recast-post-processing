@@ -5,6 +5,7 @@
 /// Helpers
 
 function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
     return str
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -18,7 +19,96 @@ function tokenize(text) {
 
 //
 
-const MAX_DIFF_TOKENS = 3000;
+const MAX_DIFF_TOKENS = 50000;
+
+function myersDiff(oldTokens, newTokens) {
+    const oldLength = oldTokens.length;
+    const newLength = newTokens.length;
+    const maxTotalLength = oldLength + newLength;
+    const furthestPaths = new Int32Array(2 * maxTotalLength + 1);
+    const pathHistory = [];
+
+    furthestPaths[maxTotalLength + 1] = 0;
+
+    for (let editDepth = 0; editDepth <= maxTotalLength; editDepth++) {
+        // Memory safeguard for highly divergent huge texts (keeps memory < 100MB)
+        if (editDepth > 10000) return null;
+        
+        pathHistory.push(new Int32Array(furthestPaths));
+
+        for (let diagonal = -editDepth; diagonal <= editDepth; diagonal += 2) {
+            let oldPos;
+            const goDown = (diagonal === -editDepth || (diagonal !== editDepth && furthestPaths[maxTotalLength + diagonal - 1] < furthestPaths[maxTotalLength + diagonal + 1]));
+
+            if (goDown) {
+                oldPos = furthestPaths[maxTotalLength + diagonal + 1];
+            } else {
+                oldPos = furthestPaths[maxTotalLength + diagonal - 1] + 1;
+            }
+
+            let newPos = oldPos - diagonal;
+
+            while (oldPos < oldLength && newPos < newLength && oldTokens[oldPos] === newTokens[newPos]) {
+                oldPos++;
+                newPos++;
+            }
+
+            furthestPaths[maxTotalLength + diagonal] = oldPos;
+
+            if (oldPos >= oldLength && newPos >= newLength) {
+                const ops = [];
+                let currOldPos = oldLength, currNewPos = newLength;
+
+                for (let step = editDepth; step > 0; step--) {
+                    const historyArray = pathHistory[step];
+                    const currDiagonal = currOldPos - currNewPos;
+                    const histIndex = maxTotalLength + currDiagonal;
+
+                    const wentDown = (currDiagonal === -step || (currDiagonal !== step && historyArray[histIndex - 1] < historyArray[histIndex + 1]));
+
+                    let startX, startY;
+                    if (wentDown) {
+                        startX = historyArray[histIndex + 1];
+                    } else {
+                        startX = historyArray[histIndex - 1] + 1;
+                    }
+                    startY = startX - currDiagonal;
+
+                    while (currOldPos > startX && currNewPos > startY && currOldPos > 0 && currNewPos > 0) {
+                        ops.unshift({ type: "equal", v: oldTokens[currOldPos - 1] });
+                        currOldPos--; currNewPos--;
+                    }
+
+                    if (wentDown) {
+                        if (currNewPos > 0) {
+                            ops.unshift({ type: "insert", v: newTokens[currNewPos - 1] });
+                            currNewPos--;
+                        }
+                    } else {
+                        if (currOldPos > 0) {
+                            ops.unshift({ type: "delete", v: oldTokens[currOldPos - 1] });
+                            currOldPos--;
+                        }
+                    }
+                }
+                while (currOldPos > 0 && currNewPos > 0) {
+                    ops.unshift({ type: "equal", v: oldTokens[currOldPos - 1] });
+                    currOldPos--; currNewPos--;
+                }
+                while (currOldPos > 0) {
+                    ops.unshift({ type: "delete", v: oldTokens[currOldPos - 1] });
+                    currOldPos--;
+                }
+                while (currNewPos > 0) {
+                    ops.unshift({ type: "insert", v: newTokens[currNewPos - 1] });
+                    currNewPos--;
+                }
+                return ops;
+            }
+        }
+    }
+    return [];
+}
 
 function computeWordDiff(oldText, newText) {
     const a = tokenize(oldText);
@@ -29,35 +119,42 @@ function computeWordDiff(oldText, newText) {
         return { oldHtml: escapeHtml(oldText), newHtml: escapeHtml(newText) };
     }
 
-    const m = a.length, n = b.length;
-    const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
-
-    for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-            dp[i][j] = a[i - 1] === b[j - 1]
-                ? dp[i - 1][j - 1] + 1
-                : Math.max(dp[i - 1][j], dp[i][j - 1]);
-        }
+    // Optimization 1: Strip common prefix
+    let start = 0;
+    while (start < a.length && start < b.length && a[start] === b[start]) {
+        start++;
     }
 
-    // Backtrack to reconstruct operations
-    const ops = [];
-    let i = m, j = n;
-    while (i > 0 || j > 0) {
-        if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-            ops.unshift({ type: "equal", v: a[i - 1] });
-            i--; j--;
-        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-            ops.unshift({ type: "insert", v: b[j - 1] });
-            j--;
-        } else {
-            ops.unshift({ type: "delete", v: a[i - 1] });
-            i--;
-        }
+    // Optimization 2: Strip common suffix
+    let endA = a.length - 1;
+    let endB = b.length - 1;
+    while (endA >= start && endB >= start && a[endA] === b[endB]) {
+        endA--;
+        endB--;
     }
+
+    const subA = a.slice(start, endA + 1);
+    const subB = b.slice(start, endB + 1);
+
+    let ops = myersDiff(subA, subB);
+    if (!ops) {
+        // Fallback if diff is too divergent
+        ops = [
+            ...subA.map(v => ({ type: "delete", v })),
+            ...subB.map(v => ({ type: "insert", v }))
+        ];
+    }
+
+    // Reconstruct operations including common prefix and suffix
+    const fullOps = [
+        ...a.slice(0, start).map(v => ({ type: "equal", v })),
+        ...ops,
+        ...a.slice(endA + 1).map(v => ({ type: "equal", v }))
+    ];
 
     let oldHtml = "", newHtml = "";
-    for (const op of ops) {
+    for (const op of fullOps) {
+        if (op.v === undefined || op.v === null) continue;
         const v = escapeHtml(op.v);
         if (op.type === "equal")        { oldHtml += v; newHtml += v; }
         else if (op.type === "delete")  { oldHtml += `<del class="rc-del">${v}</del>`; }
