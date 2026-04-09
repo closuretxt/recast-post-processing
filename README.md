@@ -52,6 +52,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
   - Skip diff view and hide original message for seamless use.
 - **Preset System:** Save, load, and manage different pipeline configurations. Drag and drop passes to reorder them.
 - **Macro Support:** Allows the injection of macros inside the post-processing prompts, allowing other extensions & information to be used in specific passes. Recast also exposes `{{recast_latest}}` and `{{recast_<pass_id>}}` macros for advanced workflows.
+- **Slash Commands:** Expand utility through support commands and ST-scripts, customizing pass usage and trigger conditions.
 - **Simple Direct Design:** We kept everything compact and direct, with advanced options being optional.
 
 ## 💡 Usage Guide
@@ -103,7 +104,7 @@ Contact me through the Discord extension post or Reddit comments on the original
 You can help by submitting bug reports or opening pull requests!
 
 ### Special Thanks
-- *Qvink for the Connection Profile generation! [Available here](github.com/qvink/qvink_memory)*
+- *Qvink for the Qvink Memory Extension! [Available here](github.com/qvink/qvink_memory)*
 - *Rivelle for the Beautiful custom theme - Moonlit Echoes! [Available here](https://github.com/RivelleDays/SillyTavern-MoonlitEchoesTheme)*
 - *RossAscends for the robust Profile Switching! [Available here](https://github.com/RossAscends/ST-TCReasoningProfile)*
 - *SillyTavern devs, [weather](https://github.com/bmen25124), [Qvink](github.com/qvink) and community for the ConnectionProfileService*
@@ -124,7 +125,7 @@ AGPL-3.0 LICENSE || Copyright (C) 2026 closuretxt || Please read LICENSE for mor
 - Exporting and Importing Recast Presets
 - Character Locking Presets
 - Advanced Prompt Control, prefills and role management Options, trigger cooldowns
-- Conditional Pass Triggers based on ST-script
+- Conditional Pass Triggers based on ST-script (Can be done with QR right now)
 - Adaptative Pass to decide the order and which Passes will be used for the upcoming generation
 - Tool Calling
 - Reroll button (Original > Goes again) / Pipeline Again (Pass result on the pipeline again) on the review menu

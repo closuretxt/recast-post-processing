@@ -6,7 +6,9 @@ import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
 import { MacrosParser } from "../../../macros.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
-import { defaultPresets } from "./settings/defaultPresets.js";
+// Settings
+import { loadSettings, saveSettings, defaultSettings, initSettingsListeners } from "./settings/settingsManager.js";
+export { loadSettings, saveSettings, defaultSettings };
 
 // Self Util
 import { showDiffModal, initDiffViewer } from "./util/diffViewer.js";
@@ -16,28 +18,13 @@ import { presetManager } from "./ui/presetManager.js";
 import { initCompatibilityListeners, shouldSkipStreamIntercept, shouldIgnoreMessageReceived } from "./util/compatibility.js";
 // UI
 import { pipelineBar } from "./ui/pipelineBar.js";
+// Slash Commands
+import { initSlashCommands } from "./util/slashCommands.js";
 
 // Setup
-const extensionName = "Recast";
+export const extensionName = "Recast";
 const extensionFolderPath = `scripts/extensions/third-party/recast-post-processing`;
 const extensionSettings = extension_settings[extensionName];
-
-const defaultSettings = {
-    enabled: true,
-    autorun: true, // Runs on gen
-    inject: true, // Should edit messages with new content
-    replace_inline: false, // If it should edit messages as the pipeline runs
-    hide_until_last: true, // Skips all message edit and hides the message until pipeline is about to end
-    stream_pipeline: true, // Streaming, has to have default sillystreaming enabled too
-    debug_mode: false,
-    disable_editable_diff: true, // Disables the edit field in the diff viewer
-    legacy_api: false, // Swaps profiles and waits for them before doing the request, useful for fixing some issues with root ST code
-    compatibility_mode: false, // Enables compatibility fixes for other extensions
-    min_chars: 10, // Skips if there's not enough characters. Useful for preventing rejections or shortcomings from triggering pipeline
-    
-    presets: defaultPresets,
-    active_preset: "Default Preset"
-};
 
 // Starting variables
 const recentProcessedMessages = new Set(); // Per message cooldown. Making sure other extensions won't trigger the pipeline twice. Yeah I know...
@@ -268,46 +255,6 @@ function safeUpdateMessageText(mesId, msg) {
     }
 }
 
-// SETTINGS
-async function loadSettings() {
-    extension_settings[extensionName] = extension_settings[extensionName] || {};
-    if (Object.keys(extension_settings[extensionName]).length === 0) {
-        Object.assign(extension_settings[extensionName], defaultSettings);
-    }
-
-    $("#recast_enabled").prop("checked", extension_settings[extensionName].enabled);
-    $("#recast_autorun").prop("checked", extension_settings[extensionName].autorun);
-    $("#recast_inject").prop("checked", extension_settings[extensionName].inject);
-    $("#recast_replace_inline").prop("checked", extension_settings[extensionName].replace_inline);
-    $("#recast_hide_until_last").prop("checked", extension_settings[extensionName].hide_until_last);
-    $("#recast_stream_pipeline").prop("checked", extension_settings[extensionName].stream_pipeline);
-    $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
-    $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
-    $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
-    $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
-    $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
-
-    presetManager.populatePresetDropdown();
-    presetManager.loadActivePreset();
-}
-
-function saveSettings() {
-    extension_settings[extensionName].enabled = $("#recast_enabled").prop("checked");
-    extension_settings[extensionName].autorun = $("#recast_autorun").prop("checked");
-    extension_settings[extensionName].inject = $("#recast_inject").prop("checked");
-    extension_settings[extensionName].replace_inline = $("#recast_replace_inline").prop("checked");
-    extension_settings[extensionName].hide_until_last = $("#recast_hide_until_last").prop("checked");
-    extension_settings[extensionName].stream_pipeline = $("#recast_stream_pipeline").prop("checked");
-    extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
-    extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
-    extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
-    extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
-    extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;
-    
-    presetManager.saveActivePreset();
-    saveSettingsDebounced();
-}
-
 // PRESET stuff
 function populateConnectionDropdown(selectElement, currentValue) {
     const st = getST();
@@ -392,7 +339,7 @@ function addPassToUI(pass = null) {
 
 
 // MAIN
-async function runPass(pass, text, onChunk = null) {
+export async function runPass(pass, text, onChunk = null) {
     if (!pass.enabled) return text;
 
     const st = getST();
@@ -603,7 +550,7 @@ async function runPass(pass, text, onChunk = null) {
 }
 
 // MAIN PIPELINE thread
-async function runPipeline(originalText, messageId, skipHide = false, prefixText = "") {
+export async function runPipeline(originalText, messageId, skipHide = false, prefixText = "") {
     if (isProcessing) return { skipped: true, reason: 'busy' };
     if (!extension_settings[extensionName].enabled) return { skipped: true, reason: 'disabled' };
 
@@ -922,16 +869,10 @@ jQuery(async () => {
 
     presetManager.init(addPassToUI, saveSettings);
     loadSettings();
+    initSettingsListeners();
     registerMacros();
     initDiffViewer();
-
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility").on("change", saveSettings);
-    $("#recast_min_chars").on("input change", saveSettings);
-
-    // Compatibility warn
-    $("#recast_compatibility").on("change", function() {
-        toastr.info("Please reload the page for compatibility mode changes to take full effect.", "Recast Note", { timeOut: 10000 });
-    });
+    initSlashCommands();
     
     // Pass Buttons
     $("#recast_add_pass").on("click", () => {
