@@ -420,7 +420,10 @@ export async function runPass(pass, text, onChunk = null) {
 
     // Build user message using XML-tagged sections for clear isolation between data types
     const UserParts = [];
-    let prefillPrompt = pass.prefill ? pass.prefill.trim() : "";
+    let prefillPrompt = pass.prefill || "";
+    if (typeof prefillPrompt === 'string') {
+        prefillPrompt = prefillPrompt.trim();
+    }
 
     if (IncludeCharCard && char) {
         const CharCardLines = [
@@ -436,12 +439,25 @@ export async function runPass(pass, text, onChunk = null) {
     }
 
     // This needs to become a bit more fancy
+    let ContextMessages = [];
+    const SendAsRoles = extension_settings[extensionName].scene_context_as_roles;
+
     if (IncludeSceneContext && pass.contextLength > 0) {
         const CharName = char ? char.name : "Assistant";
         const History = st.chat.slice(-(pass.contextLength + 1), -1);
         if (History.length > 0) {
-            const SceneContext = History.map(m => `${m.name}: ${m.mes}`).join("\n");
-            UserParts.push(`<scene_context>\n${SceneContext}\n</scene_context>`);
+            if (SendAsRoles) {
+                for (let i = 0; i < History.length; i++) {
+                    const msg = History[i];
+                    ContextMessages.push({
+                        role: msg.is_user ? 'user' : 'assistant',
+                        content: msg.mes
+                    });
+                }
+            } else {
+                const SceneContext = History.map(m => `${m.name}: ${m.mes}`).join("\n");
+                UserParts.push(`<scene_context>\n${SceneContext}\n</scene_context>`);
+            }
         }
     }
 
@@ -469,6 +485,9 @@ export async function runPass(pass, text, onChunk = null) {
     } catch (e) {
         console.warn("Recast: Error applying outgoing prompt regex for pass " + pass.name, e);
     }
+    
+    // trim prefill after macros and regex to ensure empty prefill is actually empty
+    if (prefillPrompt) prefillPrompt = prefillPrompt.trim();
 
     try {
         logDebug(`Running pass ${pass.name}...`);
@@ -480,9 +499,14 @@ export async function runPass(pass, text, onChunk = null) {
         const OriginalProfileName = st.extensionSettings?.connectionManager?.selectedProfileName || getProfileNameById(st, resolveConnectionProfile(st, ""));
 
         const messages = [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
+            { role: "system", content: systemPrompt }
         ];
+
+        if (ContextMessages.length > 0) {
+            messages.push(...ContextMessages);
+        }
+
+        messages.push({ role: "user", content: userPrompt });
         
         if (prefillPrompt) {
             messages.push({ role: pass.prefillRole || "assistant", content: prefillPrompt });
