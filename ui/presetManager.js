@@ -60,6 +60,8 @@ export const presetManager = {
                 enabled: $(this).find(".pass-enabled").prop("checked"),
                 contextLength: parseInt($(this).find(".pass-context-length").val(), 10),
                 prompt: $(this).find(".pass-prompt").val(),
+                prefill: $(this).find(".pass-prefill").val() || "",
+                prefillRole: $(this).find(".pass-prefill-role").val() || "assistant",
                 connection: $(this).find(".pass-connection").val(),
                 injectWorldInfo: $(this).find(".pass-inject-world-info").prop("checked"),
                 injectWIOutlets: $(this).find(".pass-inject-wi-outlets").prop("checked"),
