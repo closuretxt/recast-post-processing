@@ -289,6 +289,8 @@ function addPassToUI(pass = null) {
             enabled: true,
             contextLength: 3,
             prompt: "",
+            prefill: "",
+            prefillRole: "assistant",
             connection: "",
             injectWorldInfo: false,
             includeCharCard: true,
@@ -305,6 +307,8 @@ function addPassToUI(pass = null) {
     item.find(".pass-enabled").prop("checked", pass.enabled);
     item.find(".pass-context-length").val(pass.contextLength);
     item.find(".pass-prompt").val(pass.prompt);
+    item.find(".pass-prefill").val(pass.prefill || "");
+    item.find(".pass-prefill-role").val(pass.prefillRole || "assistant");
     
     const connectionSelect = item.find(".pass-connection");
     populateConnectionDropdown(connectionSelect, pass.connection);
@@ -416,6 +420,7 @@ export async function runPass(pass, text, onChunk = null) {
 
     // Build user message using XML-tagged sections for clear isolation between data types
     const UserParts = [];
+    let prefillPrompt = pass.prefill ? pass.prefill.trim() : "";
 
     if (IncludeCharCard && char) {
         const CharCardLines = [
@@ -447,6 +452,7 @@ export async function runPass(pass, text, onChunk = null) {
     try {
         systemPrompt = substituteParams(systemPrompt, { name2Override: char?.name });
         userPrompt = substituteParams(userPrompt, { name2Override: char?.name });
+        if (prefillPrompt) prefillPrompt = substituteParams(prefillPrompt, { name2Override: char?.name });
         logDebug(`Pass ${pass.name}: substituteParams applied to system+user prompts.`);
     } catch (e) {
         console.warn("Recast: Error substituting macros via substituteParams for pass " + pass.name, e);
@@ -457,6 +463,7 @@ export async function runPass(pass, text, onChunk = null) {
         if (typeof getRegexedString === "function") {
             systemPrompt = getRegexedString(systemPrompt, regex_placement.AI_OUTPUT, { isPrompt: true, characterOverride: char?.name });
             userPrompt = getRegexedString(userPrompt, regex_placement.AI_OUTPUT, { isPrompt: true, characterOverride: char?.name });
+            if (prefillPrompt) prefillPrompt = getRegexedString(prefillPrompt, regex_placement.AI_OUTPUT, { isPrompt: true, characterOverride: char?.name });
             logDebug(`Pass ${pass.name}: outgoing prompt regex applied (isPrompt=true).`);
         }
     } catch (e) {
@@ -476,6 +483,10 @@ export async function runPass(pass, text, onChunk = null) {
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
         ];
+        
+        if (prefillPrompt) {
+            messages.push({ role: pass.prefillRole || "assistant", content: prefillPrompt });
+        }
 
         let result = "";
         let swappedProfile = false;

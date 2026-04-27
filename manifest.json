@@ -6,6 +6,6 @@
     "js": "index.js",
     "css": "style.css",
     "author": "closuretxt",
-    "version": "1.52",
+    "version": "1.6",
     "homePage": "https://github.com/closuretxt/recast-post-processing"
 }

@@ -223,6 +223,17 @@
                 <span>Prompt:</span>
                 <textarea class="pass-prompt text_pole" rows="4" style="width: 100%; resize: vertical; margin-top: 5px;"></textarea>
             </div>
+            <div style="margin-bottom: 5px;">
+                <div class="flex-container alignitemscenter justifyspacebetween">
+                    <span>Prefill:</span>
+                    <select class="pass-prefill-role text_pole" title="Role to inject this message as">
+                        <option value="assistant">Assistant</option>
+                        <option value="user">User</option>
+                        <option value="system">System</option>
+                    </select>
+                </div>
+                <textarea class="pass-prefill text_pole" rows="2" style="width: 100%; resize: vertical; margin-top: 5px;" placeholder="Optional prefill..."></textarea>
+            </div>
         </div>
     </div>
 </template>
