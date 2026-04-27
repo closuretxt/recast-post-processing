@@ -911,7 +911,7 @@ jQuery(async () => {
     presetManager.init(addPassToUI, saveSettings, refreshRecastMacros);
     loadSettings();
     initSettingsListeners();
-    refreshRecastMacros();
+    registerMacros();
     initDiffViewer();
     initSlashCommands();
     
