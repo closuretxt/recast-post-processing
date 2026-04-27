@@ -12,11 +12,13 @@ export const extensionName = "Recast";
 // Provide dependencies from index.js
 let addPassToUIFn = null;
 let saveSettingsFn = null;
+let refreshMacrosFn = null;
 
 export const presetManager = {
-    init: function(addPassFn, saveFn) {
+    init: function(addPassFn, saveFn, refreshFn = null) {
         addPassToUIFn = addPassFn;
         saveSettingsFn = saveFn;
+        refreshMacrosFn = typeof refreshFn === "function" ? refreshFn : null;
 
         // Save Button (Overrides current preset silently)
         $("#recast_save_preset").off("click").on("click", () => {
@@ -33,6 +35,7 @@ export const presetManager = {
         $("#recast_preset_select").off("change").on("change", (e) => {
             extension_settings[extensionName].active_preset = $(e.target).val();
             this.loadActivePreset();
+            if (refreshMacrosFn) refreshMacrosFn();
             saveSettingsDebounced();
         });
 
@@ -66,6 +69,7 @@ export const presetManager = {
         });
         
         extension_settings[extensionName].presets[idx].passes = passes;
+        if (refreshMacrosFn) refreshMacrosFn();
         saveSettingsDebounced();
     },
 
@@ -93,6 +97,7 @@ export const presetManager = {
                 addPassToUIFn(pass);
             });
         }
+        if (refreshMacrosFn) refreshMacrosFn();
     },
 
     // --- Modal Management ---
@@ -133,6 +138,7 @@ export const presetManager = {
 
             extension_settings[extensionName].presets.push({ name: name, passes: [] });
             extension_settings[extensionName].active_preset = name;
+            if (refreshMacrosFn) refreshMacrosFn();
             saveSettingsDebounced();
             this.renderManagerList();
         });
@@ -151,6 +157,7 @@ export const presetManager = {
                 }
             });
             
+            if (refreshMacrosFn) refreshMacrosFn();
             saveSettingsDebounced();
             this.renderManagerList();
             toastr.success("Default presets restored.");
@@ -175,6 +182,7 @@ export const presetManager = {
             if (extension_settings[extensionName].active_preset === name) {
                 extension_settings[extensionName].active_preset = extension_settings[extensionName].presets[0]?.name || "";
             }
+            if (refreshMacrosFn) refreshMacrosFn();
             saveSettingsDebounced();
             this.renderManagerList();
         });
@@ -197,6 +205,7 @@ export const presetManager = {
                 if (extension_settings[extensionName].active_preset === oldName) {
                     extension_settings[extensionName].active_preset = newName;
                 }
+                if (refreshMacrosFn) refreshMacrosFn();
                 saveSettingsDebounced();
                 this.renderManagerList();
             }

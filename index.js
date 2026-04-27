@@ -1,10 +1,10 @@
 // IMPORTS
 import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled, showSwipeButtons} from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled, showSwipeButtons, substituteParams } from "../../../../script.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
-import { MacrosParser } from "../../../macros.js";
+import { macros as macroSystem } from "../../../macros/macro-system.js";
 import { getRegexedString, regex_placement } from "../../regex/engine.js";
 // Settings
 import { loadSettings, saveSettings, defaultSettings, initSettingsListeners } from "./settings/settingsManager.js";
@@ -44,6 +44,9 @@ const PassResults = {};
 let LatestResult = "";
 let _passSnapshots = [];
 let _passNames = [];
+
+// Track which macros we registered so we can refresh cleanly
+let _registeredRecastMacros = new Set();
 
 // Base functions
 // Utility to get ST variables
@@ -411,12 +414,6 @@ export async function runPass(pass, text, onChunk = null) {
         }
     }
 
-    // Always substitute ST macros in the system prompt
-    if (typeof MacrosParser !== 'undefined' && typeof MacrosParser.parseMacros === 'function') {
-        systemPrompt = MacrosParser.parseMacros(systemPrompt);
-        logDebug(`Pass ${pass.name}: Macros substituted in system prompt.`);
-    }
-
     // Build user message using XML-tagged sections for clear isolation between data types
     const UserParts = [];
 
@@ -444,7 +441,27 @@ export async function runPass(pass, text, onChunk = null) {
     }
 
     UserParts.push(`<text_to_transform>\n${text}\n</text_to_transform>`);
-    const userPrompt = UserParts.join("\n\n");
+    let userPrompt = UserParts.join("\n\n");
+
+    // Substitute ST {{macros}} for both prompts (matches normal generation behavior)
+    try {
+        systemPrompt = substituteParams(systemPrompt, { name2Override: char?.name });
+        userPrompt = substituteParams(userPrompt, { name2Override: char?.name });
+        logDebug(`Pass ${pass.name}: substituteParams applied to system+user prompts.`);
+    } catch (e) {
+        console.warn("Recast: Error substituting macros via substituteParams for pass " + pass.name, e);
+    }
+
+    // Apply ST Regex to outgoing prompts (enables prompt-only rules like 'Alter Outgoing Prompt')
+    try {
+        if (typeof getRegexedString === "function") {
+            systemPrompt = getRegexedString(systemPrompt, regex_placement.AI_OUTPUT, { isPrompt: true, characterOverride: char?.name });
+            userPrompt = getRegexedString(userPrompt, regex_placement.AI_OUTPUT, { isPrompt: true, characterOverride: char?.name });
+            logDebug(`Pass ${pass.name}: outgoing prompt regex applied (isPrompt=true).`);
+        }
+    } catch (e) {
+        console.warn("Recast: Error applying outgoing prompt regex for pass " + pass.name, e);
+    }
 
     try {
         logDebug(`Running pass ${pass.name}...`);
@@ -819,26 +836,50 @@ function applySTRegex(text) {
 }
 
 // MACROS
-// Register Recast macros with ST's MacrosParser.
+// Register Recast macros with ST's macro engine.
 // {{recast_latest}}        — full text output from the last completed pipeline run
 // {{recast_<pass_id>}}     — output of a specific pass from the last pipeline run
-function registerMacros() {
-    if (typeof MacrosParser === 'undefined' || typeof MacrosParser.addMacro !== 'function') {
-        logDebug("MacrosParser not available, skipping macro registration.");
-        return;
+export function refreshRecastMacros() {
+    try {
+        // Unregister previously registered macros to avoid stale pass IDs
+        for (const key of _registeredRecastMacros) {
+            try {
+                macroSystem.registry.unregisterMacro(key);
+            } catch {
+                // Best-effort cleanup; registry may not contain the macro
+            }
+        }
+        _registeredRecastMacros = new Set();
+
+        // Always register latest output macro
+        macroSystem.registry.registerMacro("recast_latest", {
+            category: macroSystem.category?.MISC ?? "misc",
+            description: "Full text output from the last completed Recast pipeline run.",
+            handler: () => LatestResult || ""
+        });
+        _registeredRecastMacros.add("recast_latest");
+
+        const idx = presetManager.getActivePresetIndex();
+        if (idx === -1) {
+            logDebug("No active preset found; registered only recast_latest.");
+            return;
+        }
+
+        const Passes = extension_settings[extensionName].presets[idx]?.passes ?? [];
+        for (const pass of Passes) {
+            const key = `recast_${pass.id}`;
+            macroSystem.registry.registerMacro(key, {
+                category: macroSystem.category?.MISC ?? "misc",
+                description: `Output of Recast pass '${pass.name || pass.id}' from the last pipeline run.`,
+                handler: () => PassResults[pass.id] || ""
+            });
+            _registeredRecastMacros.add(key);
+        }
+
+        logDebug("Recast macros registered:", Array.from(_registeredRecastMacros));
+    } catch (e) {
+        console.warn("Recast: Failed to refresh Recast macros.", e);
     }
-
-    MacrosParser.addMacro("recast_latest", () => LatestResult);
-
-    const idx = presetManager.getActivePresetIndex();
-    if (idx === -1) return;
-
-    const Passes = extension_settings[extensionName].presets[idx].passes;
-    Passes.forEach(pass => {
-        MacrosParser.addMacro(`recast_${pass.id}`, () => PassResults[pass.id] || "");
-    });
-
-    logDebug("Macros registered:", ["recast_latest", ...Passes.map(p => `recast_${p.id}`)]);
 }
 
 // Startup
@@ -867,7 +908,7 @@ jQuery(async () => {
     // Append the rest to extensions settings
     $("#extensions_settings").append(tempDiv.children());
 
-    presetManager.init(addPassToUI, saveSettings);
+    presetManager.init(addPassToUI, saveSettings, refreshRecastMacros);
     loadSettings();
     initSettingsListeners();
     registerMacros();
