@@ -23,7 +23,7 @@ export const defaultSettings = {
 };
 
 export function initSettingsListeners() {
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_legacy_api, #recast_compatibility, #recast_scene_context_as_roles").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_apply_regex_prompts, #recast_legacy_api, #recast_compatibility, #recast_scene_context_as_roles").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
 
     // Compatibility warn
@@ -48,6 +48,7 @@ export async function loadSettings() {
     $("#recast_stream_pipeline").prop("checked", extension_settings[extensionName].stream_pipeline);
     $("#recast_debug_mode").prop("checked", extension_settings[extensionName].debug_mode);
     $("#recast_disable_editable_diff").prop("checked", extension_settings[extensionName].disable_editable_diff);
+    $("#recast_apply_regex_prompts").prop("checked", extension_settings[extensionName].apply_regex_prompts);
     $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
     $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
     $("#recast_scene_context_as_roles").prop("checked", extension_settings[extensionName].scene_context_as_roles);
@@ -66,6 +67,7 @@ export function saveSettings() {
     extension_settings[extensionName].stream_pipeline = $("#recast_stream_pipeline").prop("checked");
     extension_settings[extensionName].debug_mode = $("#recast_debug_mode").prop("checked");
     extension_settings[extensionName].disable_editable_diff = $("#recast_disable_editable_diff").prop("checked");
+    extension_settings[extensionName].apply_regex_prompts = $("#recast_apply_regex_prompts").prop("checked");
     extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
     extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
     extension_settings[extensionName].scene_context_as_roles = $("#recast_scene_context_as_roles").prop("checked");
