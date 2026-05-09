@@ -1034,10 +1034,10 @@ jQuery(async () => {
         const mesId = mesEl.attr('mesid');
         const isUser = mesEl.attr('is_user') === 'true';
 
-        if (isUser) {
-            toastr.warning("Recast can only process AI messages.");
-            return;
-        }
+        //if (isUser) {
+       //     toastr.warning("Recast can only process AI messages.");
+        //    return;
+        //}
 
         const st = getST();
         const msg = st.chat[mesId];
