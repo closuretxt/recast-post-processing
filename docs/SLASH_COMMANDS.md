@@ -11,6 +11,7 @@ Recast registers the following macros with SillyTavern, allowing you to access p
 
 - `{{recast_latest}}`: Contains the full text output from the last completed pipeline run.
 - `{{recast_<pass_id>}}`: Contains the output of a specific pass from the last pipeline run (e.g., `{{recast_pass_12345}}`).
+- `{{recast_original}}`: Contains the original AI message before pass 1.
 
 You can also use macros and outlets inside Pass Prompts.
 
