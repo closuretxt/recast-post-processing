@@ -1,6 +1,7 @@
 // IMPORTS
 import { extension_settings, getContext } from "../../../extensions.js";
-import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled, showSwipeButtons, substituteParams } from "../../../../script.js";
+import { saveSettingsDebounced, generateRaw, updateMessageBlock, messageFormatting, scrollChatToBottom, setSendButtonState, isStreamingEnabled as isSTStreamingEnabled, showSwipeButtons, substituteParams, eventSource, event_types } from "../../../../script.js";
+import { oai_settings } from "../../../openai.js";
 import { power_user } from "../../../power-user.js"
 import { applyStreamFadeIn } from "../../../util/stream-fadein.js";
 import { getWorldInfoPrompt } from "../../../world-info.js";
@@ -127,6 +128,45 @@ function getProfileNameById(st, profileId) {
     const Profiles = getConnectionProfiles(st);
     const profile = Profiles.find(p => p.id === profileId);
     return profile ? profile.name : null;
+}
+
+function getProfileById(st, profileId) {
+    if (!profileId) return null;
+    const Profiles = getConnectionProfiles(st);
+    return Profiles.find(p => p.id === profileId) || null;
+}
+
+function getProfilePresetNameById(st, profileId) {
+    const profile = getProfileById(st, profileId);
+    if (!profile || profile.mode !== 'cc') return null;
+    return typeof profile.preset === 'string' && profile.preset.length > 0 ? profile.preset : null;
+}
+
+async function getChatCompletionPresetSettingsByName(presetName) {
+    if (!presetName) return null;
+
+    const st = getST();
+    const result = await fetch('/api/settings/get', {
+        method: 'POST',
+        headers: st.getRequestHeaders(),
+        body: JSON.stringify({}),
+    });
+
+    if (!result.ok) {
+        return null;
+    }
+
+    const data = await result.json();
+    const presetIndex = data.openai_setting_names.indexOf(presetName);
+    if (presetIndex === -1) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(data.openai_settings[presetIndex]);
+    } catch {
+        return null;
+    }
 }
 
 function resolveConnectionProfile(st, preferredProfileId = "") {
@@ -535,11 +575,49 @@ export async function runPass(pass, text, onChunk = null) {
         let swappedProfile = false;
 
         async function requestPass(connectionProfileId, streamMode) {
-            if (extension_settings[extensionName].legacy_api) {
-                if (TargetProfileName && TargetProfileName !== OriginalProfileName) {
-                    const swapSuccess = await swapProfile(TargetProfileName, OriginalProfileName);
-                    if (swapSuccess) {
-                        swappedProfile = true;
+            const shouldUseProfilePresetPrompting = !!extension_settings[extensionName].use_profile_preset_prompting;
+            const shouldSwapProfile =
+                extension_settings[extensionName].legacy_api
+                && TargetProfileName
+                && TargetProfileName !== OriginalProfileName;
+
+            if (shouldSwapProfile) {
+                const swapSuccess = await swapProfile(TargetProfileName, OriginalProfileName);
+                if (swapSuccess) {
+                    swappedProfile = true;
+                }
+            }
+
+            let requestMessages = messages;
+            let previousOaiSettings = null;
+
+            if (shouldUseProfilePresetPrompting) {
+                const profilePresetName = getProfilePresetNameById(st, connectionProfileId);
+
+                if (profilePresetName) {
+                    const profilePresetSettings = await getChatCompletionPresetSettingsByName(profilePresetName);
+
+                    if (profilePresetSettings) {
+                        previousOaiSettings = Object.assign({}, oai_settings);
+                        Object.assign(oai_settings, profilePresetSettings);
+
+                        try {
+                            const promptReadyPromise = new Promise(resolve => {
+                                eventSource.once(event_types.CHAT_COMPLETION_PROMPT_READY, resolve);
+                            });
+
+                            getContext().generate('normal', {}, true);
+                            const promptData = await promptReadyPromise;
+
+                            if (Array.isArray(promptData?.chat) && promptData.chat.length > 0) {
+                                requestMessages = [...promptData.chat, ...messages];
+                                logDebug(`Pass ${pass.name}: applied profile preset '${profilePresetName}' to prompt building.`);
+                            }
+                        } catch (error) {
+                            logDebug(`Pass ${pass.name}: failed to build prompt from preset '${profilePresetName}'.`, error);
+                        }
+                    } else {
+                        logDebug(`Pass ${pass.name}: profile preset '${profilePresetName}' not found.`);
                     }
                 }
             }
@@ -550,12 +628,22 @@ export async function runPass(pass, text, onChunk = null) {
 
             logDebug(`Pass ${pass.name}: sendRequest profile='${connectionProfileId || "<same-as-current>"}', stream=${streamMode}`);
 
-            const createGenerator = await st.ConnectionManagerRequestService.sendRequest(
-                connectionProfileId,
-                messages,
-                undefined,
-                { stream: streamMode }
-            );
+            let createGenerator;
+            try {
+                createGenerator = await st.ConnectionManagerRequestService.sendRequest(
+                    connectionProfileId,
+                    requestMessages,
+                    undefined,
+                    {
+                        stream: streamMode,
+                        includePreset: !shouldUseProfilePresetPrompting,
+                    }
+                );
+            } finally {
+                if (previousOaiSettings) {
+                    Object.assign(oai_settings, previousOaiSettings);
+                }
+            }
 
             if (typeof createGenerator === 'function') {
                 const generator = createGenerator();

@@ -68,6 +68,10 @@
                             <input type="checkbox" id="recast_legacy_api" />
                             <span>Legacy Connection Profile</span>
                         </label>
+                        <label class="checkbox_label" title="For each pass, use the selected connection profile's linked chat completion preset while building prompts and request settings. WARNING: Context Length setting is ignored when this is enabled, as it relies on the preset's context window.">
+                            <input type="checkbox" id="recast_use_profile_preset_prompting" />
+                            <span>Use Profile Chat Preset for Prompting</span>
+                        </label>
                         <label class="checkbox_label" title="Enable compatibility with extensions like Stepped Thinking">
                             <input type="checkbox" id="recast_compatibility" />
                             <span>Compatibility Mode</span>
