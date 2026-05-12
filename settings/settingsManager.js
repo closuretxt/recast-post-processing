@@ -15,6 +15,7 @@ export const defaultSettings = {
     disable_editable_diff: true, // Disables the edit field in the diff viewer
     legacy_api: false, // Swaps profiles and waits for them before doing the request, useful for fixing some issues with root ST code
     text_completion_mode: false, // Format prompt as flat string instead of messages array for text completion proxies like NovelAI via generic API
+    use_profile_preset_prompting: false, // Pulls and applies pass profile's linked chat completion preset for prompt/request building
     compatibility_mode: false, // Enables compatibility fixes for other extensions
     scene_context_as_roles: false,
     min_chars: 60, // Skips if there's not enough characters. Useful for preventing rejections or shortcomings from triggering pipeline
@@ -24,7 +25,7 @@ export const defaultSettings = {
 };
 
 export function initSettingsListeners() {
-    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_apply_regex_prompts, #recast_legacy_api, #recast_compatibility, #recast_scene_context_as_roles, #recast_text_completion_mode").on("change", saveSettings);
+    $("#recast_enabled, #recast_autorun, #recast_inject, #recast_replace_inline, #recast_hide_until_last, #recast_stream_pipeline, #recast_debug_mode, #recast_disable_editable_diff, #recast_apply_regex_prompts, #recast_legacy_api, #recast_use_profile_preset_prompting, #recast_compatibility, #recast_scene_context_as_roles, #recast_text_completion_mode").on("change", saveSettings);
     $("#recast_min_chars").on("input change", saveSettings);
 
     // Compatibility warn
@@ -52,6 +53,7 @@ export async function loadSettings() {
     $("#recast_apply_regex_prompts").prop("checked", extension_settings[extensionName].apply_regex_prompts);
     $("#recast_legacy_api").prop("checked", extension_settings[extensionName].legacy_api);
     $("#recast_text_completion_mode").prop("checked", extension_settings[extensionName].text_completion_mode);
+    $("#recast_use_profile_preset_prompting").prop("checked", extension_settings[extensionName].use_profile_preset_prompting);
     $("#recast_compatibility").prop("checked", extension_settings[extensionName].compatibility_mode);
     $("#recast_scene_context_as_roles").prop("checked", extension_settings[extensionName].scene_context_as_roles);
     $("#recast_min_chars").val(extension_settings[extensionName].min_chars ?? 0);
@@ -72,6 +74,7 @@ export function saveSettings() {
     extension_settings[extensionName].apply_regex_prompts = $("#recast_apply_regex_prompts").prop("checked");
     extension_settings[extensionName].legacy_api = $("#recast_legacy_api").prop("checked");
     extension_settings[extensionName].text_completion_mode = $("#recast_text_completion_mode").prop("checked");
+    extension_settings[extensionName].use_profile_preset_prompting = $("#recast_use_profile_preset_prompting").prop("checked");
     extension_settings[extensionName].compatibility_mode = $("#recast_compatibility").prop("checked");
     extension_settings[extensionName].scene_context_as_roles = $("#recast_scene_context_as_roles").prop("checked");
     extension_settings[extensionName].min_chars = parseInt($("#recast_min_chars").val(), 10) || 0;

@@ -45,6 +45,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
 - **Customizeable Passes:** Make any prompt for any kind of work, including spicing up the text or adding HTML or XML tags.
 - **Reliable Bans:** Ban words, phrases or character behaviors with context awareness and without lobotomizing your model's creativity.
 - **Model Agnostic (Connection Profiles):** Use different models for different tasks! Use an emotionally aware model for character validation, and a reasoning model for prose refinement. *(Requires Connection Profiles)*
+- **Optional Profile Preset Prompting:** Separate toggle to make each pass pull and apply the selected connection profile's linked Chat Completion preset for prompt/request building, not just the model.
 - **ST Features Integration:** Supports injection of Character Cards, World Info, WI Outlets, Macros, and Scene Context into your post-processing passes.
 - **Diff Viewer:** Review, edit, accept, or reject the changes made by the pipeline with a clean side-by-side diff UI.
 - **Highly Customizable:**
@@ -84,6 +85,7 @@ Essentially, this picks up a response, processes it through each pass in your pi
 
 ### Troubleshooting
 - If you have any API issues, turn on 'Legacy Connection Profile' in Advanced Settings and make sure the API is valid.
+- If your pass uses the right profile model but not the profile-linked Chat Completion preset behavior, enable 'Use Profile Chat Preset for Prompting' in Advanced Settings.
 - If you are using CoT Extensions like Stepped Thinking, enable 'Compatibility Mode' in Advanced Settings.
 
 ## Examples
