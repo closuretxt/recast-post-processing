@@ -137,14 +137,10 @@ function getProfileNameById(st, profileId) {
     return profile ? profile.name : null;
 }
 
-function getProfileById(st, profileId) {
+function getProfilePresetNameById(st, profileId) {
     if (!profileId) return null;
     const Profiles = getConnectionProfiles(st);
-    return Profiles.find(p => p.id === profileId) || null;
-}
-
-function getProfilePresetNameById(st, profileId) {
-    const profile = getProfileById(st, profileId);
+    const profile = Profiles.find(p => p.id === profileId) || null;
     if (!profile || profile.mode !== 'cc') return null;
     return typeof profile.preset === 'string' && profile.preset.length > 0 ? profile.preset : null;
 }
