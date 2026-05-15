@@ -98,6 +98,13 @@ function hasConnectionProfile(st, profileId) {
 function parse_reasoning(text, profile_id) { // thanks qvink
     let ctx = getST();
     
+    // Safely handle objects or arrays that might have leaked into parsing
+    if (typeof text !== 'string') {
+        if (text && text.content) text = text.content;
+        else if (text && text.text) text = text.text;
+        else text = String(text);
+    }
+    
     if (typeof ctx.parseReasoningFromString !== 'function' || typeof ctx.getReasoningTemplateByName !== 'function') {
         return text;
     }
@@ -517,18 +524,34 @@ export async function runPass(pass, text, onChunk = null) {
         const TargetProfileName = getProfileNameById(st, ConnectionProfile);
         const OriginalProfileName = st.extensionSettings?.connectionManager?.selectedProfileName || getProfileNameById(st, resolveConnectionProfile(st, ""));
 
-        const messages = [
-            { role: "system", content: systemPrompt }
-        ];
+        const isTextCompletionMode = extension_settings[extensionName].text_completion_mode === true;
+        let payload;
 
-        if (ContextMessages.length > 0) {
-            messages.push(...ContextMessages);
-        }
+        if (isTextCompletionMode) {
+            let textPrompt = `### Instruction:\n${systemPrompt}\n\n`;
+            if (ContextMessages.length > 0) {
+                textPrompt += ContextMessages.map(m => m.content).join("\n\n") + "\n\n";
+            }
+            textPrompt += `### Input:\n${userPrompt}\n\n### Response:\n`;
+            if (prefillPrompt) {
+                textPrompt += prefillPrompt;
+            }
+            payload = textPrompt;
+        } else {
+            const messages = [
+                { role: "system", content: systemPrompt }
+            ];
 
-        messages.push({ role: "user", content: userPrompt });
-        
-        if (prefillPrompt) {
-            messages.push({ role: pass.prefillRole || "assistant", content: prefillPrompt });
+            if (ContextMessages.length > 0) {
+                messages.push(...ContextMessages);
+            }
+
+            messages.push({ role: "user", content: userPrompt });
+            
+            if (prefillPrompt) {
+                messages.push({ role: pass.prefillRole || "assistant", content: prefillPrompt });
+            }
+            payload = messages;
         }
 
         let result = "";
@@ -548,11 +571,11 @@ export async function runPass(pass, text, onChunk = null) {
                 throw new Error("ConnectionManagerRequestService.sendRequest is unavailable.");
             }
 
-            logDebug(`Pass ${pass.name}: sendRequest profile='${connectionProfileId || "<same-as-current>"}', stream=${streamMode}`);
+            logDebug(`Pass ${pass.name}: sendRequest profile='${connectionProfileId || "<same-as-current>"}', stream=${streamMode}, mode=${isTextCompletionMode ? 'text' : 'chat'}`);
 
             const createGenerator = await st.ConnectionManagerRequestService.sendRequest(
                 connectionProfileId,
-                messages,
+                payload,
                 undefined,
                 { stream: streamMode }
             );
@@ -565,18 +588,67 @@ export async function runPass(pass, text, onChunk = null) {
                         logDebug(`Pass ${pass.name}: stream aborted by isPipelineCancelled.`);
                         break;
                     }
-                    if (chunk && chunk.text !== undefined) {
+                    if (typeof chunk === 'string') {
+                        streamResult = chunk;
+                        if (onChunk) onChunk(streamResult);
+                    } else if (chunk && chunk.text !== undefined) {
                         streamResult = chunk.text;
-                        if (onChunk) {
-                            onChunk(streamResult);
-                        }
+                        if (onChunk) onChunk(streamResult);
+                    } else if (chunk && chunk.content !== undefined) {
+                        streamResult = chunk.content;
+                        if (onChunk) onChunk(streamResult);
                     }
                 }
                 return streamResult;
             }
 
-            if (createGenerator && typeof createGenerator === 'object') {
-                const fallbackResult = createGenerator.content || createGenerator.text || String(createGenerator);
+            if (createGenerator) {
+                let fallbackResult = "";
+                
+                if (typeof createGenerator === 'string') {
+                    fallbackResult = createGenerator;
+                } else if (Array.isArray(createGenerator)) {
+                    // Anthropic extended thinking block format or choice array
+                    const texts = createGenerator
+                        .filter(b => b && b.type === 'text' && typeof b.text === 'string')
+                        .map(b => b.text);
+                    if (texts.length > 0) fallbackResult = texts.join('\n');
+                    else {
+                        const strings = createGenerator.filter(item => typeof item === 'string');
+                        if (strings.length > 0) fallbackResult = strings.join('\n');
+                    }
+                } else if (typeof createGenerator === 'object') {
+                    // Check standard object structures
+                    if (createGenerator.content !== undefined && createGenerator.content !== null) {
+                        if (typeof createGenerator.content === 'string') fallbackResult = createGenerator.content;
+                        else if (Array.isArray(createGenerator.content)) {
+                            const texts = createGenerator.content
+                                .filter(b => b && b.type === 'text' && typeof b.text === 'string')
+                                .map(b => b.text);
+                            if (texts.length > 0) fallbackResult = texts.join('\n');
+                        }
+                    } else if (createGenerator.choices?.[0]?.message?.content) {
+                        const c = createGenerator.choices[0].message.content;
+                        if (typeof c === 'string') fallbackResult = c;
+                        else if (Array.isArray(c)) {
+                            const texts = c
+                                .filter(b => b && b.type === 'text' && typeof b.text === 'string')
+                                .map(b => b.text);
+                            if (texts.length > 0) fallbackResult = texts.join('\n');
+                        }
+                    } else if (typeof createGenerator.text === 'string') {
+                        fallbackResult = createGenerator.text;
+                    } else if (typeof createGenerator.message === 'string') {
+                        fallbackResult = createGenerator.message;
+                    } else if (createGenerator.message?.content && typeof createGenerator.message.content === 'string') {
+                        fallbackResult = createGenerator.message.content;
+                    } else {
+                        fallbackResult = String(createGenerator);
+                    }
+                } else {
+                    fallbackResult = String(createGenerator);
+                }
+
                 if (onChunk) onChunk(fallbackResult);
                 return fallbackResult;
             }
