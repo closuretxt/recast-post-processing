@@ -562,6 +562,7 @@ export async function runPass(pass, text, onChunk = null) {
 
         const isTextCompletionMode = extension_settings[extensionName].text_completion_mode === true;
         let payload;
+        let messages = null;
 
         if (isTextCompletionMode) {
             let textPrompt = `### Instruction:\n${systemPrompt}\n\n`;
@@ -574,7 +575,7 @@ export async function runPass(pass, text, onChunk = null) {
             }
             payload = textPrompt;
         } else {
-            let messages = [
+            messages = [
                 { role: "system", content: systemPrompt }
             ];
 
@@ -610,7 +611,7 @@ export async function runPass(pass, text, onChunk = null) {
             let requestMessages = messages;
             let previousOaiSettings = null;
 
-            if (shouldUseProfilePresetPrompting) {
+            if (shouldUseProfilePresetPrompting && !isTextCompletionMode) {
                 const profilePresetName = getProfilePresetNameById(st, connectionProfileId);
 
                 if (profilePresetName) {
@@ -649,7 +650,7 @@ export async function runPass(pass, text, onChunk = null) {
 
             let createGenerator;
             try {
-                const sendPayload = (typeof requestMessages !== 'undefined') ? requestMessages : payload;
+                const sendPayload = isTextCompletionMode ? payload : requestMessages;
                 createGenerator = await st.ConnectionManagerRequestService.sendRequest(
                     connectionProfileId,
                     sendPayload,
