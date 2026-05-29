@@ -450,9 +450,15 @@ export async function runPass(pass, text, onChunk = null) {
             if (SendAsRoles) {
                 for (let i = 0; i < History.length; i++) {
                     const msg = History[i];
+                    const isUser = msg.is_user === true || msg.is_user === 'true';
+                    const isSystem = msg.is_system === true || msg.is_system === 'true';
+                    let role = 'assistant';
+                    if (isUser) role = 'user';
+                    if (isSystem) role = 'system';
+                    
                     ContextMessages.push({
-                        role: msg.is_user ? 'user' : 'assistant',
-                        content: msg.mes
+                        role: role,
+                        content: msg.name ? `${msg.name}: ${msg.mes}` : msg.mes
                     });
                 }
             } else {
