@@ -66,6 +66,18 @@ You can also use macros and outlets inside Pass Prompts.
 
 ---
 
+### `/rc-passtoggle`
+**Aliases:** `/recast-passtoggle`  
+**Description:** Enables, disables, or toggles passes in the active Recast preset.
+- **Arguments:**
+  - `passes` *(String, Required)*: A 1-based index list formatted inside curly braces.
+  - `state` *(Boolean, Optional)*: The state to set (`true` or `false`). When omitted, the pass is toggled.
+- **Usage:**
+  - `/rc-passtoggle passes={2, 3}` - Toggles the second and third passes in the active preset.
+  - `/rc-passtoggle passes={2, 3} state=false` - Disables the second and third passes in the active preset.
+
+---
+
 ### `/rc-customrun`
 **Aliases:** `/recast-customrun`  
 **Description:** Runs a custom set of passes on a specific message without permanently changing your active preset. Useful for complex scripting workflows.

@@ -7,6 +7,7 @@ import { presetManager } from "../ui/presetManager.js";
 /rc-runbulk From_mesId-To_mesId WaitTime (Bulk runs from X to Y message, optional wait time between requests default 1 second)
 /rc-toggle toggleTo (Toggles to true or false accordingly the extension enabled, if none just toggles it)
 /rc-diffToggle toggleTo (Toggles to true or false accordingly the diff viewer setting, if none just toggles it)
+/rc-passtoggle passes={1, 2} [state=true|false] (Toggles passes by 1-based position; state can be true or false)
 
 /rc-customrun mesId=mesId passes={1, 2, 3} (allows you to run a custom pass with specific pass settings.)
 /rc-profile profileName (Switches current profile or returns the name of the current profile if nothing is passed)
@@ -175,6 +176,73 @@ export function initSlashCommands() {
         unnamedArgumentList: [
             SlashCommandArgument.fromProps({
                 description: 'Boolean value to set replace_inline (true/false)',
+                isRequired: false,
+                typeList: [ARGUMENT_TYPE.BOOLEAN],
+            }),
+        ],
+    }));
+
+    SlashCommandParser.addCommandObject(SlashCommand.fromProps({
+        name: 'rc-passtoggle',
+        aliases: ['recast-passtoggle'],
+        helpString: 'Enable, disable, or toggle passes in the active Recast preset by their 1-based positions.',
+        callback: (args) => {
+            const settings = extension_settings[extensionName];
+            const presetIndex = presetManager.getActivePresetIndex();
+            const preset = settings.presets?.[presetIndex];
+
+            if (!preset?.passes) {
+                toastr.warning("No active preset found.");
+                return "";
+            }
+
+            if (!args.passes) {
+                toastr.warning("No passes specified. Provide passes={1, 2, 3}");
+                return "";
+            }
+
+            const passPositions = args.passes
+                .replace(/[{}]/g, '')
+                .split(',')
+                .map(position => Number.parseInt(position.trim(), 10));
+
+            if (passPositions.length === 0 || passPositions.some(position => !Number.isInteger(position) || position < 1)) {
+                toastr.warning("Passes must be a list of positive integers (e.g., {1, 2, 3}).");
+                return "";
+            }
+
+            const passes = passPositions.map(position => preset.passes[position - 1]);
+
+            if (passes.some(pass => !pass)) {
+                toastr.warning("One or more passes were not found in the active preset.");
+                return "";
+            }
+
+            const requestedState = args.state;
+            passes.forEach(pass => {
+                pass.enabled = requestedState === "" || requestedState === undefined || requestedState === null
+                    ? !pass.enabled
+                    : String(requestedState).toLowerCase() === "true";
+            });
+
+            presetManager.loadActivePreset();
+            saveSettings();
+            const stateLabel = requestedState === "" || requestedState === undefined || requestedState === null
+                ? "toggled"
+                : String(requestedState).toLowerCase() === "true" ? "enabled" : "disabled";
+            toastr.info(`Recast passes ${passPositions.join(", ")} ${stateLabel}.`);
+            return "";
+        },
+        namedArgumentList: [
+            SlashCommandNamedArgument.fromProps({
+                name: 'passes',
+                description: 'List of pass indices, 1-based (e.g., {1, 3})',
+                isRequired: true,
+                typeList: [ARGUMENT_TYPE.STRING],
+            }),
+            SlashCommandNamedArgument.fromProps({
+                name: 'state',
+                description: 'Boolean value to set the state (true/false)',
                 isRequired: false,
                 typeList: [ARGUMENT_TYPE.BOOLEAN],
             }),
